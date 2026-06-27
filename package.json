@@ -1,0 +1,8 @@
+{
+  "name": "job-harvester",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ]
+}

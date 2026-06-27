@@ -1,0 +1,11 @@
+{
+  "skills": [
+    { "name": "TypeScript", "strength": "must_have" },
+    { "name": "React", "strength": "must_have" },
+    { "name": "Node.js", "strength": "must_have" },
+    { "name": "PostgreSQL", "strength": "nice_to_have" },
+    { "name": "Docker", "strength": "nice_to_have" },
+    { "name": "Figma", "strength": "preferred" }
+  ],
+  "gapThreshold": 0.5
+}

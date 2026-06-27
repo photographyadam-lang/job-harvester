@@ -1,0 +1,23 @@
+{
+  "name": "Figma",
+  "departments": [
+    "Business Development",
+    "Business Operations",
+    "Engineering",
+    "Legal",
+    "People",
+    "Product",
+    "Product Support",
+    "Weavy - Figma Weave"
+  ],
+  "location": "",
+  "keyword": "Project Management, Program Management, Privacy, Management, Business, TPM, Marketing, AI, Stakeholders, IT, Trust, Risk Management, GDPR, IT Operations, Data, Product Manager",
+  "sectionHeaders": {
+    "must_have": [
+      "We'd love to hear from you if you have:"
+    ],
+    "nice_to_have": [
+      "While it's not required, it's an added plus if you also have:"
+    ]
+  }
+}

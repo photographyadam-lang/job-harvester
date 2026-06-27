@@ -1,0 +1,201 @@
+{
+  "skills": [
+    {
+      "name": "Privacy",
+      "strength": "must_have",
+      "aliases": [
+        "Data Privacy",
+        "Information Privacy",
+        "Privacy Compliance",
+        "Privacy by Design",
+        "Privacy Engineering",
+        "Privacy Protection",
+        "GDPR",
+        "Privacy Law"
+      ]
+    },
+    {
+      "name": "Risk",
+      "strength": "must_have",
+      "aliases": [
+        "Risk Management",
+        "Risk Assessment",
+        "Risk Analysis",
+        "Risk Mitigation",
+        "Risk Control",
+        "Risk Evaluation",
+        "Risk Identification",
+        "Risk Monitoring"
+      ]
+    },
+    {
+      "name": "Trust and Safety",
+      "strength": "nice_to_have",
+      "aliases": [
+        "T&S",
+        "Trust & Safety",
+        "Trust and Safety Specialist",
+        "Trust and Safety Analyst",
+        "Safety and Trust",
+        "Trust & Safety Operations",
+        "Content Moderation",
+        "Safety Operations"
+      ]
+    },
+    {
+      "name": "Business Systems",
+      "strength": "nice_to_have",
+      "aliases": [
+        "BS",
+        "BizSys",
+        "Business Systems Analysis",
+        "Business Systems Management",
+        "Enterprise Systems",
+        "Business Information Systems",
+        "Business Application Systems",
+        "Business Systems Administration"
+      ]
+    },
+    {
+      "name": "Enterprise Applications",
+      "strength": "nice_to_have",
+      "aliases": [
+        "ERP",
+        "CRM",
+        "EAS",
+        "Enterprise Software",
+        "Business Applications",
+        "Corporate Applications",
+        "Enterprise Systems",
+        "Business Software"
+      ]
+    },
+    {
+      "name": "Program Management",
+      "strength": "preferred",
+      "aliases": [
+        "PM",
+        "PgM",
+        "Program Mgmt",
+        "Program Manager",
+        "Project Management",
+        "Portfolio Management",
+        "Programme Management",
+        "Program Director"
+      ]
+    },
+    {
+      "name": "Project Management",
+      "strength": "preferred",
+      "aliases": [
+        "PM",
+        "Project Mgmt",
+        "Project Lead",
+        "Program Management",
+        "Project Coordination",
+        "Project Administration",
+        "Project Control",
+        "Project Planning"
+      ]
+    },
+    {
+      "name": "Data Analytics",
+      "strength": "preferred",
+      "aliases": [
+        "Data Analysis",
+        "DA",
+        "Data Mining",
+        "Business Analytics",
+        "Data Science",
+        "Analytics",
+        "Data Wrangling",
+        "Data Modeling"
+      ]
+    },
+    {
+      "name": "SQL",
+      "strength": "preferred",
+      "aliases": [
+        "Structured Query Language",
+        "SQL Server",
+        "T-SQL",
+        "PL/SQL",
+        "MySQL",
+        "PostgreSQL",
+        "Oracle SQL",
+        "ANSI SQL"
+      ]
+    },
+    {
+      "name": "Responsible AI",
+      "strength": "preferred",
+      "aliases": [
+        "RAI",
+        "Responsible AI Development",
+        "Ethical AI",
+        "Trustworthy AI",
+        "Fair AI",
+        "AI Ethics",
+        "Responsible ML",
+        "AI Governance"
+      ]
+    },
+    {
+      "name": "Strong cross-functional program delivery",
+      "strength": "preferred",
+      "aliases": [
+        "Cross-functional program delivery",
+        "Cross-functional project management",
+        "Cross-team program delivery",
+        "Program delivery management",
+        "Cross-functional delivery",
+        "Multi-functional program delivery",
+        "End-to-end program delivery",
+        "Cross-functional program management"
+      ]
+    },
+    {
+      "name": "Stakeholder Management",
+      "strength": "preferred",
+      "aliases": [
+        "Stakeholder Relations",
+        "Stakeholder Engagement",
+        "Stakeholder Communication",
+        "Stakeholder Coordination",
+        "Stakeholder Liaison",
+        "Stakeholder Management Skills",
+        "Stakeholder Relationship Management",
+        "Stakeholder Interaction"
+      ]
+    },
+    {
+      "name": "Change Management",
+      "strength": "nice_to_have",
+      "aliases": [
+        "Change Management",
+        "CM",
+        "Change Control",
+        "Change Mgmt",
+        "Change Mgmt.",
+        "Change Mgt",
+        "Change Mgt.",
+        "Change Process"
+      ]
+    },
+    {
+      "name": "LLM",
+      "strength": "nice_to_have",
+      "aliases": [
+        "Large Language Model",
+        "LLMs",
+        "Large Language Models",
+        "GPT",
+        "Transformer Model",
+        "Foundation Model",
+        "Language Model",
+        "Neural Language Model"
+      ]
+    }
+  ],
+  "gapThreshold": 0.6
+}
