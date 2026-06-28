@@ -95,6 +95,15 @@ export function usePipelineStream(token: string): UsePipelineStreamReturn {
     try {
       const parsed: PipelineEvent = JSON.parse(event.data);
 
+      // Close EventSource synchronously for terminal events — must happen
+      // BEFORE setState to prevent browser auto-reconnect from starting an
+      // infinite pipeline loop.  React batches setState updaters, so a
+      // close() inside the updater may execute too late.
+      if (parsed.type === 'run-complete' || parsed.type === 'run-error') {
+        esRef.current?.close();
+        esRef.current = null;
+      }
+
       setState((prev) => {
         // Ignore events after terminal state
         if (
@@ -128,10 +137,6 @@ export function usePipelineStream(token: string): UsePipelineStreamReturn {
           }
 
           case 'run-complete':
-            // Close EventSource to prevent browser auto-reconnect from
-            // starting an infinite pipeline loop.
-            esRef.current?.close();
-            esRef.current = null;
             return {
               ...prev,
               status: 'complete' as PipelineStatus,
@@ -141,9 +146,6 @@ export function usePipelineStream(token: string): UsePipelineStreamReturn {
             };
 
           case 'run-error':
-            // Close EventSource to prevent browser auto-reconnect.
-            esRef.current?.close();
-            esRef.current = null;
             return {
               ...prev,
               status: 'error' as PipelineStatus,
@@ -183,6 +185,11 @@ export function usePipelineStream(token: string): UsePipelineStreamReturn {
     es.onmessage = handleMessage;
 
     es.onerror = () => {
+      // Close EventSource to prevent browser auto-reconnect from starting
+      // an infinite pipeline loop.  Called synchronously before setState so
+      // React batching doesn't delay the close past the reconnect window.
+      esRef.current?.close();
+      esRef.current = null;
       setState((prev) => {
         if (prev.status === 'complete' || prev.status === 'error') {
           return prev;
@@ -190,7 +197,10 @@ export function usePipelineStream(token: string): UsePipelineStreamReturn {
         return {
           ...prev,
           status: 'error',
-          error: 'SSE connection failed or was closed unexpectedly.',
+          error:
+            'Connection to backend failed. ' +
+            'Is the server running on port 3001? ' +
+            'Try restarting with: npm run dev --workspace=server',
         };
       });
     };
@@ -227,10 +237,17 @@ export function usePipelineStream(token: string): UsePipelineStreamReturn {
           // occurred — don't override to error
           return prev;
         }
+        // Close EventSource to prevent browser auto-reconnect from
+        // restarting a pipeline run the user didn't request.
+        esRef.current?.close();
+        esRef.current = null;
         return {
           ...prev,
           status: 'error',
-          error: 'SSE connection failed or was closed unexpectedly.',
+          error:
+            'Connection to backend failed. ' +
+            'Is the server running on port 3001? ' +
+            'Try restarting with: npm run dev --workspace=server',
         };
       });
     };
