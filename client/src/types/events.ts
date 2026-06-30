@@ -52,6 +52,8 @@ export interface JobPassedEvent {
     updatedAt?: string;
     /** ISO 8601 — set by Stage 1 (Fetch) only. */
     firstPublished?: string;
+    /** Describes why the job passed (set by Stage 2 filter). */
+    matchReason?: string;
   };
 }
 
@@ -109,6 +111,16 @@ export interface ScoredJobSummary {
   unmatchedSkills: string[];
   mustHaves: string[];
   niceToHaves: string[];
+  /** Department name (e.g. "Engineering") — from Stage 2 filter. */
+  department: string;
+  /** Location name (e.g. "San Francisco, CA") — from Stage 2 filter. */
+  location: string;
+  /** Gap ratio from Stage 4 (0 = all must-have skills matched, 1+ = many unmatched). */
+  gapRatio: number;
+  /** ISO 8601 timestamp from Greenhouse "updated_at" — set by Stage 1. */
+  updatedAt?: string;
+  /** ISO 8601 timestamp from Greenhouse "first_published" — set by Stage 1. */
+  firstPublished?: string;
 }
 
 /** Emitted when the pipeline run completes successfully. */

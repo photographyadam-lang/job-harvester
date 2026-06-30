@@ -41,11 +41,12 @@ const _defaultConfig: FilterConfig = {
   location: 'San Francisco',
   departments: ['Engineering'],
   keyword: 'Software',
+  descriptionKeyword: '',
 };
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+// =========================================================================
+// Phase 1 — Location filter (all tests unchanged from original)
+// =========================================================================
 
 describe('filterJobs', () => {
   // -----------------------------------------------------------------------
@@ -58,11 +59,19 @@ describe('filterJobs', () => {
       createRawJob({ id: 2, locationName: 'Remote (US)' }),
     ];
 
-    const config: FilterConfig = { location: 'Remote', departments: ['Engineering'], keyword: 'Software' };
+    const config: FilterConfig = {
+      location: 'Remote',
+      departments: ['Engineering'],
+      keyword: 'Software',
+      descriptionKeyword: '',
+    };
     const result: StageResult<FilteredJob> = filterJobs(jobs, config);
 
     expect(result.passed).toHaveLength(1);
     expect(result.passed[0].id).toBe(2);
+    expect(result.passed[0].matchReason).toMatch(/Location match/);
+    expect(result.passed[0].matchReason).toContain('remote');
+    expect(result.passed[0].matchReason).toMatch(/Role\+Dept match/);
     expect(result.rejected).toHaveLength(1);
     expect(result.rejected[0].id).toBe(1);
     expect(result.rejected[0].rejectedAtStage).toBe(2);
@@ -77,7 +86,12 @@ describe('filterJobs', () => {
       createRawJob({ id: 2, locationName: 'San Francisco, CA' }),
     ];
 
-    const config: FilterConfig = { location: 'San Francisco', departments: ['Engineering'], keyword: 'Engineer' };
+    const config: FilterConfig = {
+      location: 'San Francisco',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: '',
+    };
     const result = filterJobs(jobs, config);
 
     expect(result.passed).toHaveLength(1);
@@ -89,144 +103,7 @@ describe('filterJobs', () => {
   });
 
   // -----------------------------------------------------------------------
-  // Department filter
-  // -----------------------------------------------------------------------
-
-  test('department retained', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, departmentName: 'Engineering' }),
-      createRawJob({ id: 2, departmentName: 'Marketing' }),
-    ];
-
-    const config: FilterConfig = { location: '', departments: ['Engineering'], keyword: '' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-    expect(result.rejected).toHaveLength(1);
-    expect(result.rejected[0].id).toBe(2);
-    expect(result.rejected[0].reason).toMatch(/department/i);
-    expect(result.rejected[0].reason).toContain('Marketing');
-  });
-
-  test('department excluded', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, departmentName: 'Engineering' }),
-      createRawJob({ id: 2, departmentName: 'Sales' }),
-    ];
-
-    const config: FilterConfig = { location: '', departments: ['Engineering'], keyword: '' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-    expect(result.rejected).toHaveLength(1);
-    expect(result.rejected[0].id).toBe(2);
-    expect(result.rejected[0].reason).toMatch(/department/i);
-  });
-
-  // -----------------------------------------------------------------------
-  // Keyword filter (single keyword)
-  // -----------------------------------------------------------------------
-
-  test('keyword retained (single)', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, title: 'Software Engineer' }),
-      createRawJob({ id: 2, title: 'Product Manager' }),
-    ];
-
-    const config: FilterConfig = { location: '', departments: [], keyword: 'Engineer' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-    expect(result.rejected).toHaveLength(1);
-    expect(result.rejected[0].id).toBe(2);
-    expect(result.rejected[0].reason).toMatch(/keyword/i);
-    expect(result.rejected[0].reason).toContain('Product Manager');
-  });
-
-  test('keyword excluded (single)', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, title: 'Software Engineer' }),
-      createRawJob({ id: 2, title: 'Accountant' }),
-    ];
-
-    const config: FilterConfig = { location: '', departments: [], keyword: 'Engineer' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-    expect(result.rejected).toHaveLength(1);
-    expect(result.rejected[0].id).toBe(2);
-    expect(result.rejected[0].reason).toMatch(/keyword/i);
-  });
-
-  // -----------------------------------------------------------------------
-  // Keyword filter (comma-separated, OR logic)
-  // -----------------------------------------------------------------------
-
-  test('keyword retained (comma-separated, OR logic)', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, title: 'Technical Program Manager' }),
-      createRawJob({ id: 2, title: 'Privacy Engineer' }),
-      createRawJob({ id: 3, title: 'Project Coordinator' }),
-      createRawJob({ id: 4, title: 'Software Engineer' }),
-    ];
-
-    const config: FilterConfig = {
-      location: '',
-      departments: [],
-      keyword: 'Project, Program, Privacy, Management',
-    };
-
-    const result = filterJobs(jobs, config);
-
-    // Job 1 matches "Program" and "Management", Job 2 matches "Privacy",
-    // Job 3 matches "Project". Job 4 matches none.
-    expect(result.passed).toHaveLength(3);
-    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2, 3]);
-    expect(result.rejected).toHaveLength(1);
-    expect(result.rejected[0].id).toBe(4);
-    expect(result.rejected[0].reason).toMatch(/keyword/i);
-  });
-
-  test('keyword excluded (comma-separated, none match)', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, title: 'Software Engineer' }),
-      createRawJob({ id: 2, title: 'Data Scientist' }),
-    ];
-
-    const config: FilterConfig = {
-      location: '',
-      departments: [],
-      keyword: 'Project, Program, Privacy, Management',
-    };
-
-    // None of these titles contain any of the keywords
-    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
-  });
-
-  test('keyword trims whitespace around comma-separated terms', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, title: 'Technical Program Manager' }),
-    ];
-
-    // Leading/trailing spaces around commas should be trimmed
-    const config: FilterConfig = {
-      location: '',
-      departments: [],
-      keyword: ' Project ,  Program , Privacy , Management ',
-    };
-
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-  });
-
-  // -----------------------------------------------------------------------
-  // Case-insensitivity
+  // Case-insensitivity (location)
   // -----------------------------------------------------------------------
 
   test('case-insensitive location', () => {
@@ -235,145 +112,16 @@ describe('filterJobs', () => {
       createRawJob({ id: 2, locationName: 'New York, NY' }),
     ];
 
-    const config: FilterConfig = { location: 'Remote', departments: [], keyword: '' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-  });
-
-  test('case-insensitive department', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, departmentName: 'engineering' }),
-      createRawJob({ id: 2, departmentName: 'Marketing' }),
-    ];
-
-    const config: FilterConfig = { location: '', departments: ['Engineering'], keyword: '' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-  });
-
-  test('department with trailing whitespace matches trimmed config value', () => {
-    // Greenhouse API sometimes returns department names with trailing spaces,
-    // e.g. "Technical Program Management " vs config "Technical Program Management".
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, departmentName: 'Technical Program Management ' }),
-      createRawJob({ id: 2, departmentName: 'Engineering ' }),
-    ];
-
     const config: FilterConfig = {
-      location: '',
-      departments: ['Technical Program Management', 'Engineering'],
+      location: 'Remote',
+      departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
     const result = filterJobs(jobs, config);
 
-    // Both should match because the department value is trimmed before comparison
-    expect(result.passed).toHaveLength(2);
-    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2]);
-    expect(result.rejected).toHaveLength(0);
-  });
-
-  test('case-insensitive keyword', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, title: 'software engineer' }),
-      createRawJob({ id: 2, title: 'Product Manager' }),
-    ];
-
-    const config: FilterConfig = { location: '', departments: [], keyword: 'Software' };
-    const result = filterJobs(jobs, config);
-
     expect(result.passed).toHaveLength(1);
     expect(result.passed[0].id).toBe(1);
-  });
-
-  // -----------------------------------------------------------------------
-  // Zero survivors
-  // -----------------------------------------------------------------------
-
-  test('zero-survivors throws ConfigMismatchError', () => {
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, locationName: 'New York, NY', departmentName: 'Marketing', title: 'Accountant' }),
-    ];
-
-    const config: FilterConfig = { location: 'Remote', departments: ['Engineering'], keyword: 'Engineer' };
-
-    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
-  });
-
-  // -----------------------------------------------------------------------
-  // rejectedAtStage
-  // -----------------------------------------------------------------------
-
-  test('all rejected jobs have rejectedAtStage: 2', () => {
-    // One job passes all filters; the rest fail at different filter levels.
-    const jobs: RawJob[] = [
-      createRawJob({ id: 1, locationName: 'San Francisco, CA', departmentName: 'Engineering', title: 'Software Engineer' }),
-      createRawJob({ id: 2, locationName: 'Austin, TX', departmentName: 'Engineering', title: 'Software Engineer' }),
-      createRawJob({ id: 3, locationName: 'San Francisco, CA', departmentName: 'Marketing', title: 'Software Engineer' }),
-      createRawJob({ id: 4, locationName: 'San Francisco, CA', departmentName: 'Engineering', title: 'Accountant' }),
-    ];
-
-    const config: FilterConfig = { location: 'San Francisco', departments: ['Engineering'], keyword: 'Engineer' };
-    const result = filterJobs(jobs, config);
-
-    // Job 1 passes all three; Job 2 fails location; Job 3 passes location fails department; Job 4 passes location & department fails keyword
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(1);
-    expect(result.rejected).toHaveLength(3);
-    expect(result.rejected.every((r: { rejectedAtStage: number }) => r.rejectedAtStage === 2)).toBe(true);
-  });
-
-  // -----------------------------------------------------------------------
-  // First failing filter is reported
-  // -----------------------------------------------------------------------
-
-  test('first failing filter is the one reported', () => {
-    // Three jobs each fail at a different filter, ensuring the first failing
-    // filter is the one reported (not a later one).
-    const jobs: RawJob[] = [
-      // Fails location filter (first) — should report location
-      createRawJob({
-        id: 1,
-        locationName: 'New York, NY',
-        departmentName: 'Marketing',
-        title: 'Accountant',
-      }),
-      // Passes location, fails department — should report department
-      createRawJob({
-        id: 2,
-        locationName: 'San Francisco, CA',
-        departmentName: 'Marketing',
-        title: 'Accountant',
-      }),
-      // One job passes all three so ConfigMismatchError is not thrown
-      createRawJob({
-        id: 3,
-        locationName: 'San Francisco, CA',
-        departmentName: 'Engineering',
-        title: 'Software Engineer',
-      }),
-    ];
-
-    const config: FilterConfig = { location: 'San Francisco', departments: ['Engineering'], keyword: 'Engineer' };
-    const result = filterJobs(jobs, config);
-
-    expect(result.passed).toHaveLength(1);
-    expect(result.passed[0].id).toBe(3);
-    expect(result.rejected).toHaveLength(2);
-
-    // Job 1 fails location first
-    expect(result.rejected[0].id).toBe(1);
-    expect(result.rejected[0].reason).toMatch(/location/i);
-    expect(result.rejected[0].reason).toContain('New York, NY');
-    expect(result.rejected[0].reason).toContain('[San Francisco]');
-
-    // Job 2 passes location but fails department
-    expect(result.rejected[1].id).toBe(2);
-    expect(result.rejected[1].reason).toMatch(/department/i);
-    expect(result.rejected[1].reason).toContain('Marketing');
   });
 
   // -----------------------------------------------------------------------
@@ -392,6 +140,7 @@ describe('filterJobs', () => {
       location: 'Remote, San Francisco',
       departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
 
     const result = filterJobs(jobs, config);
@@ -400,6 +149,9 @@ describe('filterJobs', () => {
     // Jobs 3 & 4 match neither.
     expect(result.passed).toHaveLength(2);
     expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2]);
+    expect(result.passed[0].matchReason).toMatch(/Location match/);
+    expect(result.passed[0].matchReason).toMatch(/No Phase 2 filters configured/);
+    expect(result.passed[1].matchReason).toMatch(/Location match/);
     expect(result.rejected).toHaveLength(2);
     expect(result.rejected.map((j) => j.id).sort()).toEqual([3, 4]);
     expect(result.rejected.every((r) => r.reason.includes('location'))).toBe(true);
@@ -414,6 +166,7 @@ describe('filterJobs', () => {
       location: ' Remote ,  San Francisco ',
       departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
 
     const result = filterJobs(jobs, config);
@@ -444,6 +197,7 @@ describe('filterJobs', () => {
       location: 'San Francisco',
       departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
 
     const result = filterJobs(jobs, config);
@@ -478,6 +232,7 @@ describe('filterJobs', () => {
       location: 'Seattle, Remote',
       departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
 
     const result = filterJobs(jobs, config);
@@ -504,6 +259,7 @@ describe('filterJobs', () => {
       location: 'London',
       departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
 
     expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
@@ -518,7 +274,12 @@ describe('filterJobs', () => {
       }),
     ];
 
-    const config: FilterConfig = { location: '', departments: [], keyword: '' };
+    const config: FilterConfig = {
+      location: '',
+      departments: [],
+      keyword: '',
+      descriptionKeyword: '',
+    };
 
     const result = filterJobs(jobs, config);
     expect(result.passed).toHaveLength(1);
@@ -537,10 +298,603 @@ describe('filterJobs', () => {
       location: 'Seattle',
       departments: [],
       keyword: '',
+      descriptionKeyword: '',
     };
 
     const result = filterJobs(jobs, config);
 
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+  });
+
+  // =========================================================================
+  // Phase 2 — (Role Keyword AND Departments) OR (Description Keyword)
+  // =========================================================================
+
+  // -----------------------------------------------------------------------
+  // Branch A: (Role Keyword AND Departments) — both match
+  // -----------------------------------------------------------------------
+
+  test('Branch A: keyword AND department both match → passes', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, title: 'Software Engineer', departmentName: 'Engineering' }),
+      createRawJob({ id: 2, title: 'Data Scientist', departmentName: 'Engineering' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1: keyword match + dept match → passes
+    // Job 2: keyword no match → Branch A fails, no Branch B → rejected
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.passed[0].matchReason).toMatch(/Role\+Dept match/);
+    expect(result.passed[0].matchReason).toContain('engineer');
+    expect(result.passed[0].matchReason).toContain('Engineering');
+    expect(result.passed[0].matchReason).toMatch(/Location filter not configured/);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(2);
+    expect(result.rejected[0].reason).toMatch(/Phase 2/i);
+  });
+
+  test('Branch A: keyword fails, department passes → rejected', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, title: 'Accountant', departmentName: 'Engineering' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: '',
+    };
+
+    // Keyword doesn't match title → Branch A fails, no Branch B → rejected
+    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
+  });
+
+  test('Branch A: department fails, keyword passes → rejected', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, title: 'Software Engineer', departmentName: 'Marketing' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: '',
+    };
+
+    // Department not in list → Branch A fails, no Branch B → rejected
+    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
+  });
+
+  // -----------------------------------------------------------------------
+  // Branch A: keyword (comma-separated, OR logic)
+  // -----------------------------------------------------------------------
+
+  test('Branch A: keyword comma-separated OR logic on title', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, title: 'Technical Program Manager', departmentName: 'Engineering' }),
+      createRawJob({ id: 2, title: 'Privacy Engineer', departmentName: 'Engineering' }),
+      createRawJob({ id: 3, title: 'Project Coordinator', departmentName: 'Engineering' }),
+      createRawJob({ id: 4, title: 'Software Engineer', departmentName: 'Engineering' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Project, Program, Privacy, Management',
+      descriptionKeyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1 matches "Program" and "Management", Job 2 matches "Privacy",
+    // Job 3 matches "Project". Job 4 matches none → rejected.
+    expect(result.passed).toHaveLength(3);
+    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2, 3]);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(4);
+    expect(result.rejected[0].reason).toMatch(/Phase 2/i);
+  });
+
+  // -----------------------------------------------------------------------
+  // Branch A: keyword empty or departments empty → Branch A disabled
+  // -----------------------------------------------------------------------
+
+  test('keyword empty → Branch A disabled, only Branch B can pass', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Software Engineer',
+        departmentName: 'Engineering',
+        content: '<p>We need a privacy expert</p>',
+      }),
+      createRawJob({
+        id: 2,
+        title: 'Product Manager',
+        departmentName: 'Marketing',
+        content: '<p>General role</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: '',
+      descriptionKeyword: 'privacy',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1: keyword empty, dept set → Branch A disabled, Branch B matches "privacy" → passes
+    // Job 2: keyword empty, dept set → Branch A disabled, Branch B no match → rejected
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(2);
+    expect(result.rejected[0].reason).toMatch(/Phase 2/i);
+  });
+
+  test('departments empty → Branch A disabled, only Branch B can pass', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Software Engineer',
+        departmentName: 'Engineering',
+        content: '<p>We need a privacy expert</p>',
+      }),
+      createRawJob({
+        id: 2,
+        title: 'Product Manager',
+        departmentName: 'Marketing',
+        content: '<p>General role</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: [],
+      keyword: 'Engineer',
+      descriptionKeyword: 'privacy',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1: dept empty, keyword set → Branch A disabled, Branch B matches "privacy" → passes
+    // Job 2: dept empty, keyword set → Branch A disabled, Branch B no match → rejected
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(2);
+  });
+
+  // -----------------------------------------------------------------------
+  // Branch B: Description Keyword
+  // -----------------------------------------------------------------------
+
+  test('Branch B: descriptionKeyword match in content → passes regardless of keyword/dept', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Accountant',
+        departmentName: 'Finance',
+        content: '<p>This role involves privacy compliance and GDPR regulations</p>',
+      }),
+      createRawJob({
+        id: 2,
+        title: 'Software Engineer',
+        departmentName: 'Engineering',
+        content: '<p>Build APIs</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: 'privacy, GDPR',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1: fails Branch A (keyword+dept) but Branch B matches "privacy" → passes
+    // Job 2: passes Branch A (keyword+dept) → passes
+    expect(result.passed).toHaveLength(2);
+    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2]);
+
+    // Job 1 should have description keyword match reason
+    const job1 = result.passed.find((j) => j.id === 1)!;
+    expect(job1.matchReason).toMatch(/Description keyword match/);
+    expect(job1.matchReason).toContain('privacy');
+
+    // Job 2 should have Role+Dept match reason
+    const job2 = result.passed.find((j) => j.id === 2)!;
+    expect(job2.matchReason).toMatch(/Role\+Dept match/);
+    expect(result.rejected).toHaveLength(0);
+  });
+
+  test('Branch B: descriptionKeyword saves job that fails Branch A', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Privacy Engineer',
+        departmentName: 'Legal',          // not in departments
+        content: '<p>GDPR compliance and data protection</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],        // Legal is not here
+      keyword: 'Engineer',                 // title matches
+      descriptionKeyword: 'GDPR',          // content matches
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Branch A: keyword matches but dept fails → no
+    // Branch B: "GDPR" found in content → passes
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.rejected).toHaveLength(0);
+  });
+
+  test('Branch B: descriptionKeyword fails, Branch A also fails → rejected', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Accountant',
+        departmentName: 'Finance',
+        content: '<p>Standard accounting duties</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: 'privacy',
+    };
+
+    // Both branches fail → zero survivors
+    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
+  });
+
+  test('Branch B: descriptionKeyword comma-separated OR logic', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Analyst',
+        departmentName: 'Finance',
+        content: '<p>Focus on risk management frameworks</p>',
+      }),
+      createRawJob({
+        id: 2,
+        title: 'Coordinator',
+        departmentName: 'Operations',
+        content: '<p>General operations</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: [],
+      keyword: '',
+      descriptionKeyword: 'privacy, risk, compliance, GDPR',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1: "risk" found → passes
+    // Job 2: none found → rejected
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(2);
+  });
+
+  test('Branch B: descriptionKeyword trims whitespace around commas', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Analyst',
+        departmentName: 'Finance',
+        content: '<p>GDPR compliance role</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: [],
+      keyword: '',
+      descriptionKeyword: ' privacy ,  GDPR ,  risk ',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+  });
+
+  // -----------------------------------------------------------------------
+  // Case-insensitivity (Phase 2)
+  // -----------------------------------------------------------------------
+
+  test('case-insensitive keyword in Branch A', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, title: 'software engineer', departmentName: 'Engineering' }),
+      createRawJob({ id: 2, title: 'Product Manager', departmentName: 'Engineering' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Software',
+      descriptionKeyword: '',
+    };
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+  });
+
+  test('case-insensitive department in Branch A', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, departmentName: 'engineering', title: 'Software Engineer' }),
+      createRawJob({ id: 2, departmentName: 'Marketing', title: 'Software Engineer' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Software',
+      descriptionKeyword: '',
+    };
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+  });
+
+  test('department with trailing whitespace matches trimmed config value', () => {
+    // Greenhouse API sometimes returns department names with trailing spaces,
+    // e.g. "Technical Program Management " vs config "Technical Program Management".
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, departmentName: 'Technical Program Management ', title: 'TPM' }),
+      createRawJob({ id: 2, departmentName: 'Engineering ', title: 'Engineer' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Technical Program Management', 'Engineering'],
+      keyword: 'TPM, Engineer',
+      descriptionKeyword: '',
+    };
+    const result = filterJobs(jobs, config);
+
+    // Both should match because the department value is trimmed before comparison
+    expect(result.passed).toHaveLength(2);
+    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2]);
+    expect(result.rejected).toHaveLength(0);
+  });
+
+  test('case-insensitive descriptionKeyword', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Analyst',
+        departmentName: 'Finance',
+        content: '<p>GDPR COMPLIANCE role</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: [],
+      keyword: '',
+      descriptionKeyword: 'gdpr',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+  });
+
+  // -----------------------------------------------------------------------
+  // All Phase 2 fields empty
+  // -----------------------------------------------------------------------
+
+  test('all Phase 2 fields empty → passes all jobs through', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, title: 'Software Engineer', departmentName: 'Engineering' }),
+      createRawJob({ id: 2, title: 'Accountant', departmentName: 'Finance' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: [],
+      keyword: '',
+      descriptionKeyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(2);
+    expect(result.passed[0].matchReason).toMatch(/Location filter not configured/);
+    expect(result.passed[0].matchReason).toMatch(/No Phase 2 filters configured/);
+    expect(result.passed[1].matchReason).toMatch(/No Phase 2 filters configured/);
+    expect(result.rejected).toHaveLength(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // Zero survivors
+  // -----------------------------------------------------------------------
+
+  test('zero-survivors throws ConfigMismatchError', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        locationName: 'New York, NY',
+        departmentName: 'Marketing',
+        title: 'Accountant',
+        content: '<p>General</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'Remote',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: 'privacy',
+    };
+
+    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
+  });
+
+  // -----------------------------------------------------------------------
+  // rejectedAtStage
+  // -----------------------------------------------------------------------
+
+  test('all rejected jobs have rejectedAtStage: 2', () => {
+    const jobs: RawJob[] = [
+      // Passes all
+      createRawJob({
+        id: 1,
+        locationName: 'San Francisco, CA',
+        departmentName: 'Engineering',
+        title: 'Software Engineer',
+        content: '<p>API development</p>',
+      }),
+      // Fails location
+      createRawJob({
+        id: 2,
+        locationName: 'Austin, TX',
+        departmentName: 'Engineering',
+        title: 'Software Engineer',
+        content: '<p>API development</p>',
+      }),
+      // Passes location, fails Phase 2 (wrong dept, no desc keyword)
+      createRawJob({
+        id: 3,
+        locationName: 'San Francisco, CA',
+        departmentName: 'Marketing',
+        title: 'Software Engineer',
+        content: '<p>General</p>',
+      }),
+      // Passes location, fails Phase 2 (keyword mismatch, no desc keyword)
+      createRawJob({
+        id: 4,
+        locationName: 'San Francisco, CA',
+        departmentName: 'Engineering',
+        title: 'Accountant',
+        content: '<p>General</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'San Francisco',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: '',
+    };
+    const result = filterJobs(jobs, config);
+
+    // Job 1 passes all
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.rejected).toHaveLength(3);
+    expect(result.rejected.every((r: { rejectedAtStage: number }) => r.rejectedAtStage === 2)).toBe(true);
+  });
+
+  // -----------------------------------------------------------------------
+  // First failing filter is reported (location before Phase 2)
+  // -----------------------------------------------------------------------
+
+  test('first failing filter is the one reported', () => {
+    const jobs: RawJob[] = [
+      // Fails location filter (first) — should report location
+      createRawJob({
+        id: 1,
+        locationName: 'New York, NY',
+        departmentName: 'Marketing',
+        title: 'Accountant',
+        content: '<p>General</p>',
+      }),
+      // Passes location, fails Phase 2 — should report Phase 2
+      createRawJob({
+        id: 2,
+        locationName: 'San Francisco, CA',
+        departmentName: 'Marketing',
+        title: 'Accountant',
+        content: '<p>General</p>',
+      }),
+      // One job passes everything so ConfigMismatchError is not thrown
+      createRawJob({
+        id: 3,
+        locationName: 'San Francisco, CA',
+        departmentName: 'Engineering',
+        title: 'Software Engineer',
+        content: '<p>General</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'San Francisco',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: '',
+    };
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(3);
+    expect(result.rejected).toHaveLength(2);
+
+    // Job 1 fails location first
+    expect(result.rejected[0].id).toBe(1);
+    expect(result.rejected[0].reason).toMatch(/location/i);
+    expect(result.rejected[0].reason).toContain('New York, NY');
+    expect(result.rejected[0].reason).toContain('[San Francisco]');
+
+    // Job 2 passes location but fails Phase 2
+    expect(result.rejected[1].id).toBe(2);
+    expect(result.rejected[1].reason).toMatch(/Phase 2/i);
+    expect(result.rejected[1].reason).toContain('Marketing');
+  });
+
+  // -----------------------------------------------------------------------
+  // Short-circuit: Branch A passes → Branch B not evaluated
+  // -----------------------------------------------------------------------
+
+  test('Branch A passes → Branch B not evaluated (short-circuit)', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        title: 'Software Engineer',
+        departmentName: 'Engineering',
+        content: '<p>irrelevant</p>',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Engineering'],
+      keyword: 'Engineer',
+      descriptionKeyword: 'privacy',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Branch A passes (keyword+dept) — content doesn't matter
     expect(result.passed).toHaveLength(1);
     expect(result.passed[0].id).toBe(1);
   });

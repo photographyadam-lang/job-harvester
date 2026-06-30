@@ -29,6 +29,8 @@ interface PassedJob {
   updatedAt?: string;
   /** ISO 8601 — populated by Stage 1 (Fetch) only. */
   firstPublished?: string;
+  /** Describes why the job passed (set by Stage 2 filter). */
+  matchReason?: string;
 }
 
 interface RejectedJob {

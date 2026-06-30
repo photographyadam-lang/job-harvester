@@ -1,20 +1,12 @@
 {
   "name": "anthropic",
   "departments": [
-    "Public Policy",
-    "Public Benefit",
-    "Product Management",
-    "Support",
-    "& Operations",
-    "People",
-    "Legal",
-    "Technical Program Management",
-    "Technical Education",
     "Security",
     "Safeguards (Trust & Safety)"
   ],
   "location": "Remote, New York City, NY, Remote-Friendly (Travel Required), Remote-Friendly, United States, San Francisco, CA, San Francisco, CA, New York City, NY, Seattle, WA, Seattle, WA, Washington, DC",
   "keyword": "",
+  "descriptionKeyword": "privacy, GDPR",
   "boardToken": "anthropic",
   "sectionHeaders": {
     "must_have": [

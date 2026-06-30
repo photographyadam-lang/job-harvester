@@ -116,6 +116,7 @@ export function executeStage2(
     location: config.location || '(any)',
     departments: config.departments,
     keyword: config.keyword || '(any)',
+    descriptionKeyword: config.descriptionKeyword || '(any)',
   });
 
   emit({ type: 'stage-start', stage: 2, label: 'Metadata filter' });
@@ -126,9 +127,9 @@ export function executeStage2(
     emit({
       type: 'job-passed',
       stage: 2,
-      job: { id: job.id, title: job.title, url: job.url },
+      job: { id: job.id, title: job.title, url: job.url, matchReason: job.matchReason },
     });
-    logger.jobEvent(2, 'passed', job.id, { title: job.title });
+    logger.jobEvent(2, 'passed', job.id, { title: job.title, matchReason: job.matchReason });
   }
 
   for (const job of result.rejected) {
@@ -383,6 +384,7 @@ export async function runPipeline(
     location: companyConfig.location,
     departments: companyConfig.departments,
     keyword: companyConfig.keyword,
+    descriptionKeyword: companyConfig.descriptionKeyword,
   };
 
   // -------------------------------------------------------------------------
@@ -496,19 +498,32 @@ export async function runPipeline(
   logger.info('Run persisted', { company: companyToken });
 
   // -------------------------------------------------------------------------
-  // 13. Emit run-complete
+  // 13. Build a quick lookup map for RawJob dates
   // -------------------------------------------------------------------------
-  const scoredJobSummaries = s5.result.scoredJobs.map((job) => ({
-    id: job.id,
-    title: job.title,
-    url: job.url,
-    score: job.score,
-    scoreReasoning: job.scoreReasoning,
-    matchedSkills: job.matchedSkills,
-    unmatchedSkills: job.unmatchedSkills,
-    mustHaves: job.requirements.must_haves,
-    niceToHaves: job.requirements.nice_to_haves,
-  }));
+  const rawJobById = new Map(rawJobs.map((r) => [r.id, r]));
+
+  // -------------------------------------------------------------------------
+  // 14. Emit run-complete
+  // -------------------------------------------------------------------------
+  const scoredJobSummaries = s5.result.scoredJobs.map((job) => {
+    const raw = rawJobById.get(job.id);
+    return {
+      id: job.id,
+      title: job.title,
+      url: job.url,
+      score: job.score,
+      scoreReasoning: job.scoreReasoning,
+      matchedSkills: job.matchedSkills,
+      unmatchedSkills: job.unmatchedSkills,
+      mustHaves: job.requirements.must_haves,
+      niceToHaves: job.requirements.nice_to_haves,
+      department: job.department,
+      location: job.location,
+      gapRatio: job.gapRatio,
+      updatedAt: raw?.updated_at,
+      firstPublished: raw?.first_published,
+    };
+  });
 
   emit({ type: 'run-complete', reportCard, scoredJobs: scoredJobSummaries });
 

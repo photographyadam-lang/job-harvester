@@ -108,6 +108,8 @@ function createClient(): OpenAI {
   return new OpenAI({
     apiKey,
     baseURL: 'https://api.deepseek.com',
+    timeout: 30_000,
+    maxRetries: 1,
   });
 }
 
@@ -148,6 +150,10 @@ export async function callDeepSeek(
     messages.push({ role: 'system', content: config.systemPrompt });
   }
   messages.push({ role: 'user', content: prompt });
+
+  const promptPreview =
+    prompt.length > 120 ? prompt.slice(0, 120) + '...' : prompt;
+  console.log(`[DeepSeek] Sending request | model=${model} prompt="${promptPreview}"`);
 
   let response: OpenAI.Chat.ChatCompletion;
 

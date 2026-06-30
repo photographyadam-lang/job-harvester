@@ -123,6 +123,7 @@ export function createStepSession(
     location: companyConfig.location,
     departments: companyConfig.departments,
     keyword: companyConfig.keyword,
+    descriptionKeyword: companyConfig.descriptionKeyword,
   };
 
   // Build session skeleton
@@ -403,18 +404,28 @@ function finaliseStepSession(session: StepSession): void {
   logger.info('Run persisted', { company: session.token });
 
   // Emit run-complete
+  const rawJobById = new Map(session.rawJobs.map((r) => [r.id, r]));
+
   const scoredJobSummaries = (session.stage5Result?.scoredJobs ?? []).map(
-    (job) => ({
-      id: job.id,
-      title: job.title,
-      url: job.url,
-      score: job.score,
-      scoreReasoning: job.scoreReasoning,
-      matchedSkills: job.matchedSkills,
-      unmatchedSkills: job.unmatchedSkills,
-      mustHaves: job.requirements.must_haves,
-      niceToHaves: job.requirements.nice_to_haves,
-    }),
+    (job) => {
+      const raw = rawJobById.get(job.id);
+      return {
+        id: job.id,
+        title: job.title,
+        url: job.url,
+        score: job.score,
+        scoreReasoning: job.scoreReasoning,
+        matchedSkills: job.matchedSkills,
+        unmatchedSkills: job.unmatchedSkills,
+        mustHaves: job.requirements.must_haves,
+        niceToHaves: job.requirements.nice_to_haves,
+        department: job.department,
+        location: job.location,
+        gapRatio: job.gapRatio,
+        updatedAt: raw?.updated_at,
+        firstPublished: raw?.first_published,
+      };
+    },
   );
 
   session.emit({ type: 'run-complete', reportCard, scoredJobs: scoredJobSummaries });

@@ -32,6 +32,7 @@ function createGatedJob(overrides: Partial<GatedJob> = {}): GatedJob {
     location: overrides.location ?? 'San Francisco, CA',
     department: overrides.department ?? 'Engineering',
     url: overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    matchReason: overrides.matchReason ?? 'test match reason',
     requirements: overrides.requirements ?? {
       must_haves: ['TypeScript', 'React'],
       nice_to_haves: ['Docker'],

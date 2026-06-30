@@ -24,6 +24,7 @@ const validCompanyConfig = {
   departments: ['Engineering', 'Product'],
   location: 'San Francisco',
   keyword: 'Engineer',
+  descriptionKeyword: '',
   boardToken: '',
   sectionHeaders: {
     must_have: ['About the role'],

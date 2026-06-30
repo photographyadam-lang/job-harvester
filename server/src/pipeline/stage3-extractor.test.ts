@@ -46,6 +46,7 @@ function createFilteredJob(
     location: overrides.location ?? 'San Francisco, CA',
     department: overrides.department ?? 'Engineering',
     url: overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/100',
+    matchReason: overrides.matchReason ?? 'test match reason',
   };
 }
 
@@ -57,6 +58,7 @@ const baseConfig: CompanyConfig = {
   departments: ['Engineering', 'Product', 'Design'],
   location: 'San Francisco',
   keyword: 'Engineer',
+  descriptionKeyword: '',
   boardToken: '',
   sectionHeaders: {
     must_have: ['About the role', "What you'll do"],

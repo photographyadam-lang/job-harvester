@@ -92,6 +92,7 @@ const stubCompanyConfig: CompanyConfig = {
   departments: ['Engineering', 'Design'],
   location: 'Remote',
   keyword: 'Engineer',
+  descriptionKeyword: '',
   boardToken: '',
   sectionHeaders: {
     must_have: ['Requirements'],
@@ -122,6 +123,7 @@ const stubFilteredJob: FilteredJob = {
   location: 'Remote',
   department: 'Engineering',
   url: 'https://boards.greenhouse.io/testco/jobs/1',
+  matchReason: 'test match reason',
 };
 
 const stubExtractedJob: ExtractedJob = {
@@ -655,6 +657,17 @@ describe('stepOrchestrator', () => {
         }),
         scoredJobs: expect.any(Array),
       });
+
+      // Scored jobs include metadata fields
+      if (runComplete?.type === 'run-complete') {
+        expect(runComplete.scoredJobs).toHaveLength(1);
+        const sj = runComplete.scoredJobs[0];
+        expect(sj.department).toBe('Engineering');
+        expect(sj.location).toBe('Remote');
+        expect(sj.gapRatio).toBe(0.2);
+        expect(sj.updatedAt).toBe('2026-01-01T00:00:00Z');
+        expect(sj.firstPublished).toBe('2025-01-01T00:00:00Z');
+      }
 
       // Calls persistRun
       expect(mockedPersistRun).toHaveBeenCalled();

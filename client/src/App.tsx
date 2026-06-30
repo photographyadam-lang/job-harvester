@@ -33,6 +33,7 @@ interface StageData {
     location?: string;
     updatedAt?: string;
     firstPublished?: string;
+    matchReason?: string;
   }>;
   rejectedJobs: Array<{ id: number; title: string; url: string; reason: string }>;
   isRunning: boolean;
@@ -56,6 +57,7 @@ function buildStageData(events: PipelineEvent[], status: string): StageData[] {
       location?: string;
       updatedAt?: string;
       firstPublished?: string;
+      matchReason?: string;
     }>
   >();
   const rejectedJobs = new Map<

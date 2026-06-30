@@ -29,6 +29,7 @@ function createExtractedJob(
     location: overrides.location ?? 'San Francisco, CA',
     department: overrides.department ?? 'Engineering',
     url: overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    matchReason: overrides.matchReason ?? 'test match reason',
     requirements: overrides.requirements ?? {
       must_haves: [],
       nice_to_haves: [],

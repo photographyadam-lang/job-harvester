@@ -25,6 +25,7 @@ interface CompanyConfig {
   departments: string[];
   location: string;
   keyword: string;
+  descriptionKeyword: string;
   boardToken: string;
   sectionHeaders: SectionHeaders;
 }
@@ -253,6 +254,16 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
   const handleKeywordChange = useCallback(
     (value: string) => {
       setEditCompany((prev) => (prev ? { ...prev, keyword: value } : prev));
+      setCompanySaveError(null);
+    },
+    [],
+  );
+
+  const handleDescriptionKeywordChange = useCallback(
+    (value: string) => {
+      setEditCompany((prev) =>
+        prev ? { ...prev, descriptionKeyword: value } : prev,
+      );
       setCompanySaveError(null);
     },
     [],
@@ -825,6 +836,19 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
               ))}
             </div>
           )}
+
+          <label style={labelStyle}>
+            Description Keyword{' '}
+            <span style={{ fontWeight: 400, color: '#888' }}>
+              (comma-separated substring matches on job description; leave blank to skip — Phase 2 Branch B)
+            </span>
+          </label>
+          <input
+            style={inputStyle}
+            value={editCompany.descriptionKeyword}
+            onChange={(e) => handleDescriptionKeywordChange(e.target.value)}
+            placeholder="e.g. privacy, GDPR, compliance"
+          />
 
           <label style={labelStyle}>
             Greenhouse Board Token{' '}

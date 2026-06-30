@@ -3,7 +3,6 @@
   "departments": [
     "Business Development",
     "Business Operations",
-    "Engineering",
     "Legal",
     "Product",
     "Product Support",
@@ -11,6 +10,7 @@
   ],
   "location": "Remote, New York, NY, New York, NY • United States, San Francisco, CA • United States",
   "keyword": "Project Management, Program Management, Privacy, Management, Business, TPM, Marketing, AI, Stakeholders, IT, Trust, Risk Management, GDPR, IT Operations, Data, Product Manager, Technical Program Manager",
+  "descriptionKeyword": "privacy",
   "boardToken": "",
   "sectionHeaders": {
     "must_have": [

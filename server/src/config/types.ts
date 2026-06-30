@@ -50,10 +50,20 @@ export interface CompanyConfig {
    */
   location: string;
   /**
-   * Role-name keyword used at Stage 2 (case-insensitive substring match on
-   * the job title).  An empty string disables the keyword filter.
+   * Comma-separated role-name keywords matched against the job title at
+   * Stage 2 (case-insensitive substring OR match).  Used in Phase 2
+   * Branch A together with `departments`.  An empty string disables
+   * the keyword half of Branch A.
    */
   keyword: string;
+  /**
+   * Comma-separated description keywords matched against `RawJob.content`
+   * at Stage 2 (case-insensitive substring OR match).  This is Phase 2
+   * Branch B — a job passes if a keyword is found in the description even
+   * when it fails the (keyword AND departments) check.  An empty string
+   * disables this filter.
+   */
+  descriptionKeyword: string;
   /**
    * Greenhouse board token used to construct the Greenhouse API URL
    * (e.g. `"figma"` → `https://boards-api.greenhouse.io/v1/boards/figma/...`).

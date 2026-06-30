@@ -30,6 +30,21 @@ function scoreColor(score: number): string {
   return '#ef4444'; // red
 }
 
+/**
+ * Format an ISO 8601 timestamp into a compact readable date.
+ * Returns "—" for undefined / unparseable values.
+ */
+function formatDate(iso?: string): string {
+  if (!iso) return '\u2014';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '\u2014';
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -70,7 +85,7 @@ export function ScoredJobsList({ scoredJobs }: ScoredJobsListProps) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
-                marginBottom: '0.4rem',
+                marginBottom: '0.2rem',
                 gap: '0.5rem',
               }}
             >
@@ -114,6 +129,36 @@ export function ScoredJobsList({ scoredJobs }: ScoredJobsListProps) {
               >
                 {job.score}
               </span>
+            </div>
+
+            {/* Metadata row: department · location · gap ratio · dates */}
+            <div
+              style={{
+                fontSize: '0.78rem',
+                color: '#6b7280',
+                marginBottom: '0.5rem',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.15rem 0.6rem',
+              }}
+            >
+              <span>{job.department}</span>
+              <span style={{ color: '#d1d5db' }}>·</span>
+              <span>{job.location}</span>
+              <span style={{ color: '#d1d5db' }}>·</span>
+              <span>gap: {job.gapRatio.toFixed(2)}</span>
+              {job.updatedAt && (
+                <>
+                  <span style={{ color: '#d1d5db' }}>·</span>
+                  <span>Updated: {formatDate(job.updatedAt)}</span>
+                </>
+              )}
+              {job.firstPublished && (
+                <>
+                  <span style={{ color: '#d1d5db' }}>·</span>
+                  <span>Published: {formatDate(job.firstPublished)}</span>
+                </>
+              )}
             </div>
 
             {/* Reasoning */}

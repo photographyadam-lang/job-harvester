@@ -115,6 +115,7 @@ const mockCompanyConfig: CompanyConfig = {
   departments: ['Engineering', 'Product', 'Design'],
   location: 'San Francisco',
   keyword: 'Engineer',
+  descriptionKeyword: '',
   boardToken: '',
   sectionHeaders: {
     must_have: ['About the role', "What you'll do"],
@@ -139,6 +140,8 @@ function createRawJob(overrides: Partial<RawJob> = {}): RawJob {
     department: { name: overrides.department?.name ?? 'Engineering' },
     absolute_url:
       overrides.absolute_url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    updated_at: overrides.updated_at ?? '2026-06-15T12:00:00-04:00',
+    first_published: overrides.first_published ?? '2025-03-01T08:00:00-05:00',
   };
 }
 
@@ -151,6 +154,7 @@ function createFilteredJob(overrides: Partial<FilteredJob> = {}): FilteredJob {
     department: overrides.department ?? 'Engineering',
     url:
       overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    matchReason: overrides.matchReason ?? 'test match reason',
   };
 }
 
@@ -165,6 +169,7 @@ function createExtractedJob(
     department: overrides.department ?? 'Engineering',
     url:
       overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    matchReason: overrides.matchReason ?? 'test match reason',
     requirements: overrides.requirements ?? {
       must_haves: ['TypeScript', 'React'],
       nice_to_haves: ['Docker'],
@@ -181,6 +186,7 @@ function createGatedJob(overrides: Partial<GatedJob> = {}): GatedJob {
     department: overrides.department ?? 'Engineering',
     url:
       overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    matchReason: overrides.matchReason ?? 'test match reason',
     requirements: overrides.requirements ?? {
       must_haves: ['TypeScript', 'React'],
       nice_to_haves: ['Docker'],
@@ -200,6 +206,7 @@ function createScoredJob(overrides: Partial<ScoredJob> = {}): ScoredJob {
     department: overrides.department ?? 'Engineering',
     url:
       overrides.url ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    matchReason: overrides.matchReason ?? 'test match reason',
     requirements: overrides.requirements ?? {
       must_haves: ['TypeScript', 'React'],
       nice_to_haves: ['Docker'],
@@ -422,9 +429,8 @@ describe('runPipeline', () => {
     if (stage1Passed?.type === 'job-passed') {
       expect(stage1Passed.job.department).toBe('Engineering');
       expect(stage1Passed.job.location).toBe('San Francisco, CA');
-      // optional — only present when the factory includes them
-      expect(stage1Passed.job.updatedAt).toBeUndefined();
-      expect(stage1Passed.job.firstPublished).toBeUndefined();
+      expect(stage1Passed.job.updatedAt).toBe('2026-06-15T12:00:00-04:00');
+      expect(stage1Passed.job.firstPublished).toBe('2025-03-01T08:00:00-05:00');
     }
   });
 
@@ -530,6 +536,15 @@ describe('runPipeline', () => {
       expect(rc.totalRejected).toBe(0); // happy path, no rejects
       expect(rc.totalRuntimeMs).toBeGreaterThanOrEqual(0);
       expect(rc.estimatedCostUsd).toBeGreaterThanOrEqual(0);
+
+      // Scored jobs include metadata fields
+      expect(completeEvent.scoredJobs).toHaveLength(1);
+      const sj = completeEvent.scoredJobs[0];
+      expect(sj.department).toBe('Engineering');
+      expect(sj.location).toBe('San Francisco, CA');
+      expect(sj.gapRatio).toBe(0.2);
+      expect(sj.updatedAt).toBe('2026-06-15T12:00:00-04:00');
+      expect(sj.firstPublished).toBe('2025-03-01T08:00:00-05:00');
     }
   });
 

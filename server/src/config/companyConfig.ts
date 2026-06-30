@@ -93,6 +93,12 @@ export function loadCompanyConfig(token: string): CompanyConfig {
   const keyword =
     typeof parsed.keyword === 'string' ? parsed.keyword : '';
 
+  // --- descriptionKeyword (optional; defaults to empty string) ---
+  const descriptionKeyword =
+    typeof parsed.descriptionKeyword === 'string'
+      ? parsed.descriptionKeyword
+      : '';
+
   // --- boardToken (optional; defaults to empty string → fall back to filename) ---
   const boardToken =
     typeof parsed.boardToken === 'string' ? parsed.boardToken : '';
@@ -128,6 +134,7 @@ export function loadCompanyConfig(token: string): CompanyConfig {
     departments: parsed.departments as string[],
     location,
     keyword,
+    descriptionKeyword,
     boardToken,
     sectionHeaders: {
       must_have: sectionHeaders.must_have as string[],

@@ -10,8 +10,7 @@
         "Privacy by Design",
         "Privacy Engineering",
         "Privacy Protection",
-        "GDPR",
-        "Privacy Law"
+        "GDPR"
       ]
     },
     {
@@ -211,5 +210,5 @@
       ]
     }
   ],
-  "gapThreshold": 0.8
+  "gapThreshold": 0.6
 }

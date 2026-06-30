@@ -11,6 +11,8 @@ interface JobRowPassedVariant {
     id: number;
     title: string;
     url: string;
+    /** Describes why the job passed (set by Stage 2 filter). */
+    matchReason?: string;
   };
 }
 
@@ -48,6 +50,11 @@ export function JobRow(props: JobRowProps) {
       {'reason' in job && job.reason && (
         <span style={{ color: '#991b1b', fontSize: '0.8rem', marginLeft: '0.5rem' }}>
           — {job.reason}
+        </span>
+      )}
+      {'matchReason' in job && job.matchReason && (
+        <span style={{ color: '#166534', fontSize: '0.8rem', marginLeft: '0.5rem' }}>
+          — {job.matchReason}
         </span>
       )}
     </li>

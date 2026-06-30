@@ -20,6 +20,11 @@ function makeScoredJob(
     unmatchedSkills: ['Python'],
     mustHaves: ['React', 'TypeScript'],
     niceToHaves: ['GraphQL'],
+    department: 'Engineering',
+    location: 'San Francisco, CA',
+    gapRatio: 0.25,
+    updatedAt: '2026-04-16T05:25:34-04:00',
+    firstPublished: '2024-11-01T06:05:10-04:00',
     ...overrides,
   };
 }
@@ -168,6 +173,84 @@ describe('ScoredJobsList', () => {
 
     expect(screen.queryByText('✓ Matched')).toBeNull();
     expect(screen.queryByText('✗ Unmatched')).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Metadata rendering
+  // ---------------------------------------------------------------------------
+
+  it('renders department and location in the metadata row', () => {
+    render(
+      <ScoredJobsList
+        scoredJobs={[
+          makeScoredJob({
+            department: 'Design',
+            location: 'New York, NY',
+            matchedSkills: [],
+            unmatchedSkills: [],
+            mustHaves: [],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('Design')).toBeDefined();
+    expect(screen.getByText('New York, NY')).toBeDefined();
+  });
+
+  it('renders gap ratio formatted to 2 decimal places', () => {
+    render(
+      <ScoredJobsList
+        scoredJobs={[
+          makeScoredJob({
+            gapRatio: 0.3333,
+            matchedSkills: [],
+            unmatchedSkills: [],
+            mustHaves: [],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('gap: 0.33')).toBeDefined();
+  });
+
+  it('renders formatted updated and published dates', () => {
+    render(
+      <ScoredJobsList
+        scoredJobs={[
+          makeScoredJob({
+            updatedAt: '2026-06-15T12:00:00-04:00',
+            firstPublished: '2025-01-20T08:00:00-05:00',
+            matchedSkills: [],
+            unmatchedSkills: [],
+            mustHaves: [],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('Updated: Jun 15, 2026')).toBeDefined();
+    expect(screen.getByText('Published: Jan 20, 2025')).toBeDefined();
+  });
+
+  it('does not render dates when updatedAt and firstPublished are undefined', () => {
+    render(
+      <ScoredJobsList
+        scoredJobs={[
+          makeScoredJob({
+            updatedAt: undefined,
+            firstPublished: undefined,
+            matchedSkills: [],
+            unmatchedSkills: [],
+            mustHaves: [],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText(/Updated:/)).toBeNull();
+    expect(screen.queryByText(/Published:/)).toBeNull();
   });
 
   // ---------------------------------------------------------------------------

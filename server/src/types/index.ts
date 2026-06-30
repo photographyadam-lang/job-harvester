@@ -45,6 +45,8 @@ export interface FilteredJob {
   location: string;
   department: string;
   url: string;
+  /** Describes which filter criteria caused this job to pass (e.g. "Role+Dept match: ..."). */
+  matchReason: string;
 }
 
 /** Must-have and nice-to-have requirements extracted from a job posting. */
@@ -120,8 +122,15 @@ export interface FilterConfig {
   location: string;
   /** Allowed department names (case-insensitive exact match on `RawJob.department.name`). */
   departments: string[];
-  /** Role-name keyword to search for in the job title (case-insensitive substring match). */
+  /** Comma-separated role-name keywords matched against the job title
+   *  (case-insensitive substring OR match). Used in Phase 2 Branch A
+   *  together with `departments`. Leave blank to skip. */
   keyword: string;
+  /** Comma-separated keywords matched against `RawJob.content` (the HTML
+   *  description). Case-insensitive substring OR match. This is Phase 2
+   *  Branch B — a job passes if it matches here even when it fails the
+   *  (keyword AND departments) check. Leave blank to skip. */
+  descriptionKeyword: string;
 }
 
 /** The complete output produced by a successful pipeline run. */
@@ -202,6 +211,8 @@ export interface JobPassedEvent {
     updatedAt?: string;
     /** ISO 8601 — set by Stage 1 (Fetch) only. */
     firstPublished?: string;
+    /** Describes why the job passed (set by Stage 2 filter). */
+    matchReason?: string;
   };
 }
 
@@ -245,6 +256,16 @@ export interface ScoredJobSummary {
   unmatchedSkills: string[];
   mustHaves: string[];
   niceToHaves: string[];
+  /** Department name (e.g. "Engineering") — from Stage 2 filter. */
+  department: string;
+  /** Location name (e.g. "San Francisco, CA") — from Stage 2 filter. */
+  location: string;
+  /** Gap ratio from Stage 4 (0 = all must-have skills matched, 1+ = many unmatched). */
+  gapRatio: number;
+  /** ISO 8601 timestamp from Greenhouse "updated_at" — set by Stage 1. */
+  updatedAt?: string;
+  /** ISO 8601 timestamp from Greenhouse "first_published" — set by Stage 1. */
+  firstPublished?: string;
 }
 
 /**
