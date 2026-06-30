@@ -31,6 +31,10 @@ export interface RawJob {
   location: { name: string };
   department: { name: string };
   absolute_url: string;
+  /** e.g. "2026-04-16T05:25:34-04:00" — ISO 8601. */
+  updated_at?: string;
+  /** e.g. "2024-11-01T06:05:10-04:00" — ISO 8601. */
+  first_published?: string;
 }
 
 /** A job that passed Stage 2 (metadata filter). */
@@ -111,7 +115,8 @@ export interface ReportCard {
  * Pre-validated by the orchestrator before being passed to `filterJobs`.
  */
 export interface FilterConfig {
-  /** Desired location substring (case-insensitive match on `RawJob.location.name`). */
+  /** Comma-separated location substrings (case-insensitive OR match on `RawJob.location.name`).
+   *  "Remote" matches "Remote - Virginia", etc. Leave blank to skip. */
   location: string;
   /** Allowed department names (case-insensitive exact match on `RawJob.department.name`). */
   departments: string[];
@@ -189,6 +194,14 @@ export interface JobPassedEvent {
     id: number;
     title: string;
     url: string;
+    /** Set by Stage 1 (Fetch) only. */
+    department?: string;
+    /** Set by Stage 1 (Fetch) only. */
+    location?: string;
+    /** ISO 8601 — set by Stage 1 (Fetch) only. */
+    updatedAt?: string;
+    /** ISO 8601 — set by Stage 1 (Fetch) only. */
+    firstPublished?: string;
   };
 }
 
@@ -276,4 +289,26 @@ export interface PipelineRunOutput {
   reportCard: ReportCard;
   scoredJobs: ScoredJob[];
   rejectedJobs: RejectedJob[];
+}
+
+// ---------------------------------------------------------------------------
+// Discovery & suggestion types
+// ---------------------------------------------------------------------------
+
+/** A named item with a frequency count (e.g. location, department, keyword). */
+export interface FrequencyItem {
+  name: string;
+  count: number;
+}
+
+/** Response shape for GET /api/discover/:token */
+export interface DiscoverResponse {
+  locations: FrequencyItem[];
+  departments: FrequencyItem[];
+}
+
+/** Response shape for POST /api/config/company/:token/suggest-keywords */
+export interface SuggestKeywordsResponse {
+  roles: FrequencyItem[];
+  specializations: FrequencyItem[];
 }

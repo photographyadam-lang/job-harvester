@@ -25,6 +25,7 @@ interface CompanyConfig {
   departments: string[];
   location: string;
   keyword: string;
+  boardToken: string;
   sectionHeaders: SectionHeaders;
 }
 
@@ -41,9 +42,15 @@ interface SkillsProfile {
   gapThreshold: number;
 }
 
+/** A named item with a frequency count returned by the discover & suggest-keywords APIs. */
+interface FrequencyItem {
+  name: string;
+  count: number;
+}
+
 interface DiscoverData {
-  locations: string[];
-  departments: string[];
+  locations: FrequencyItem[];
+  departments: FrequencyItem[];
 }
 
 export interface ConfigEditorProps {
@@ -110,7 +117,10 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
   // ── Suggest-keywords state ───────────────────────────────────────────
   const [suggestingKeywords, setSuggestingKeywords] = useState(false);
   const [suggestKeywordsError, setSuggestKeywordsError] = useState<string | null>(null);
-  const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
+  const [suggestedKeywords, setSuggestedKeywords] = useState<{
+    roles: FrequencyItem[];
+    specializations: FrequencyItem[];
+  }>({ roles: [], specializations: [] });
 
   // Track pristine snapshot to compute dirty flag
   const pristineCompany = useRef<CompanyConfig | null>(null);
@@ -149,7 +159,7 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
       setProfileSaveError(null);
       setDiscoverData(null);
       setDiscoverError(null);
-      setSuggestedKeywords([]);
+      setSuggestedKeywords({ roles: [], specializations: [] });
       setSuggestKeywordsError(null);
       return;
     }
@@ -243,6 +253,14 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
   const handleKeywordChange = useCallback(
     (value: string) => {
       setEditCompany((prev) => (prev ? { ...prev, keyword: value } : prev));
+      setCompanySaveError(null);
+    },
+    [],
+  );
+
+  const handleBoardTokenChange = useCallback(
+    (value: string) => {
+      setEditCompany((prev) => (prev ? { ...prev, boardToken: value } : prev));
       setCompanySaveError(null);
     },
     [],
@@ -429,7 +447,7 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
 
     setSuggestingKeywords(true);
     setSuggestKeywordsError(null);
-    setSuggestedKeywords([]);
+    setSuggestedKeywords({ roles: [], specializations: [] });
 
     try {
       const res = await fetch(
@@ -445,8 +463,11 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
         return;
       }
 
-      const data = (await res.json()) as { keywords: string[] };
-      setSuggestedKeywords(data.keywords);
+      const data = (await res.json()) as {
+        roles: FrequencyItem[];
+        specializations: FrequencyItem[];
+      };
+      setSuggestedKeywords(data);
     } catch (err) {
       setSuggestKeywordsError(String(err));
     } finally {
@@ -627,6 +648,21 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
     whiteSpace: 'nowrap',
   };
 
+  const countBadgeStyle: React.CSSProperties = {
+    background: '#e74c3c',
+    color: '#fff',
+    borderRadius: '50%',
+    minWidth: '18px',
+    height: '18px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.7rem',
+    fontWeight: 700,
+    marginLeft: '0.3rem',
+    padding: '0 3px',
+  };
+
   return (
     <section style={{ marginBottom: '1rem' }}>
       <details open>
@@ -652,13 +688,13 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
 
           <label style={labelStyle}>
             Location{' '}
-            <span style={{ fontWeight: 400, color: '#888' }}>(substring match on job location; leave blank to skip)</span>
+            <span style={{ fontWeight: 400, color: '#888' }}>(comma-separated substring matches; leave blank to skip)</span>
           </label>
           <input
             style={inputStyle}
             value={editCompany.location}
             onChange={(e) => handleLocationChange(e.target.value)}
-            placeholder="e.g. San Francisco"
+            placeholder="e.g. Remote, San Francisco"
           />
 
           {/* Discovered locations */}
@@ -672,31 +708,48 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
               Could not load discovery data: {discoverError}
             </p>
           )}
-          {discoverData && discoverData.locations.length > 0 && (
-            <div style={chipContainerStyle}>
-              {discoverData.locations.map((loc) => (
+          {/* Location chips: Remote always shown, plus discovered locations */}
+          <div style={chipContainerStyle}>
+            <span
+              key="remote"
+              style={chipStyle}
+              onClick={() => {
+                const current = editCompany.location.trim();
+                const newVal = current ? `${current}, Remote` : 'Remote';
+                handleLocationChange(newVal);
+              }}
+              title='Click to append "Remote" to location filter'
+            >
+              🏠 Remote
+            </span>
+            {discoverData &&
+              discoverData.locations.map((loc) => (
                 <span
-                  key={loc}
+                  key={loc.name}
                   style={chipStyle}
-                  onClick={() => handleLocationChange(loc)}
-                  title={`Click to set location to "${loc}"`}
+                  onClick={() => {
+                    const current = editCompany.location.trim();
+                    const newVal = current ? `${current}, ${loc.name}` : loc.name;
+                    handleLocationChange(newVal);
+                  }}
+                  title={`Click to append "${loc.name}" to location filter`}
                 >
-                  📍 {loc}
+                  📍 {loc.name}
+                  <span style={countBadgeStyle}>{loc.count}</span>
                 </span>
               ))}
-            </div>
-          )}
+          </div>
 
           <label style={labelStyle}>
             Role Keyword{' '}
-            <span style={{ fontWeight: 400, color: '#888' }}>(substring match on job title; leave blank to skip)</span>
+            <span style={{ fontWeight: 400, color: '#888' }}>(comma-separated substring matches on job title; leave blank to skip)</span>
           </label>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <input
               style={{ ...inputStyle, flex: 1 }}
               value={editCompany.keyword}
               onChange={(e) => handleKeywordChange(e.target.value)}
-              placeholder="e.g. Engineer"
+              placeholder="e.g. Engineer, Manager"
             />
             <button
               style={{
@@ -725,21 +778,73 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
             </p>
           )}
 
-          {/* Suggested keyword chips */}
-          {suggestedKeywords.length > 0 && (
+          {/* Suggested keyword chips — Roles */}
+          {suggestedKeywords.roles.length > 0 && (
             <div style={chipContainerStyle}>
-              {suggestedKeywords.map((kw) => (
+              <span style={{ fontSize: '0.73rem', color: '#888', marginRight: '0.1rem', fontWeight: 600 }}>
+                Roles:
+              </span>
+              {suggestedKeywords.roles.map((kw) => (
                 <span
-                  key={kw}
+                  key={`role-${kw.name}`}
                   style={chipStyle}
-                  onClick={() => handleKeywordChange(kw)}
-                  title={`Click to set keyword to "${kw}"`}
+                  onClick={() => {
+                    const current = editCompany.keyword.trim();
+                    const newVal = current ? `${current}, ${kw.name}` : kw.name;
+                    handleKeywordChange(newVal);
+                  }}
+                  title={`Click to add "${kw.name}" to keyword filter`}
                 >
-                  🔑 {kw}
+                  🔑 {kw.name}
+                  <span style={countBadgeStyle}>{kw.count}</span>
                 </span>
               ))}
             </div>
           )}
+
+          {/* Suggested keyword chips — Specializations */}
+          {suggestedKeywords.specializations.length > 0 && (
+            <div style={chipContainerStyle}>
+              <span style={{ fontSize: '0.73rem', color: '#888', marginRight: '0.1rem', fontWeight: 600 }}>
+                Specializations:
+              </span>
+              {suggestedKeywords.specializations.map((kw) => (
+                <span
+                  key={`spec-${kw.name}`}
+                  style={chipStyle}
+                  onClick={() => {
+                    const current = editCompany.keyword.trim();
+                    const newVal = current ? `${current}, ${kw.name}` : kw.name;
+                    handleKeywordChange(newVal);
+                  }}
+                  title={`Click to add "${kw.name}" to keyword filter`}
+                >
+                  🔑 {kw.name}
+                  <span style={countBadgeStyle}>{kw.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <label style={labelStyle}>
+            Greenhouse Board Token{' '}
+            <span style={{ fontWeight: 400, color: '#888' }}>(board identifier in the Greenhouse URL; leave blank to use the company key)</span>
+          </label>
+          <input
+            style={inputStyle}
+            value={editCompany.boardToken ?? ''}
+            onChange={(e) => handleBoardTokenChange(e.target.value)}
+            placeholder={token}
+          />
+          {(() => {
+            const effectiveToken = editCompany.boardToken || token;
+            const url = `https://boards-api.greenhouse.io/v1/boards/${effectiveToken}/jobs?content=true`;
+            return (
+              <p style={{ fontSize: '0.78rem', color: '#888', margin: '0.25rem 0 0', wordBreak: 'break-all' }}>
+                🌐 Greenhouse URL: <code style={{ fontSize: '0.75rem' }}>{url}</code>
+              </p>
+            );
+          })()}
 
           <label style={labelStyle}>
             Departments{' '}
@@ -757,16 +862,17 @@ export function ConfigEditor({ token, onUnsavedChanges }: ConfigEditorProps) {
             <div style={chipContainerStyle}>
               {discoverData.departments.map((dep) => (
                 <span
-                  key={dep}
+                  key={dep.name}
                   style={chipStyle}
                   onClick={() => {
                     const current = rawDepartments.trim();
-                    const newRaw = current ? `${current}, ${dep}` : dep;
+                    const newRaw = current ? `${current}, ${dep.name}` : dep.name;
                     handleDepartmentsChange(newRaw);
                   }}
-                  title={`Click to append "${dep}" to departments`}
+                  title={`Click to append "${dep.name}" to departments`}
                 >
-                  🏢 {dep}
+                  🏢 {dep.name}
+                  <span style={countBadgeStyle}>{dep.count}</span>
                 </span>
               ))}
             </div>

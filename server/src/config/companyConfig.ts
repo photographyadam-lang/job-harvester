@@ -93,6 +93,10 @@ export function loadCompanyConfig(token: string): CompanyConfig {
   const keyword =
     typeof parsed.keyword === 'string' ? parsed.keyword : '';
 
+  // --- boardToken (optional; defaults to empty string → fall back to filename) ---
+  const boardToken =
+    typeof parsed.boardToken === 'string' ? parsed.boardToken : '';
+
   // --- sectionHeaders ---
   if (parsed.sectionHeaders === undefined || parsed.sectionHeaders === null) {
     throw new ConfigValidationError(
@@ -124,9 +128,27 @@ export function loadCompanyConfig(token: string): CompanyConfig {
     departments: parsed.departments as string[],
     location,
     keyword,
+    boardToken,
     sectionHeaders: {
       must_have: sectionHeaders.must_have as string[],
       nice_to_have: sectionHeaders.nice_to_have as string[],
     },
   };
+}
+
+/**
+ * Resolve the effective Greenhouse board token for a company.
+ *
+ * When the company config has a non-empty `boardToken`, it is used directly.
+ * Otherwise, the `fallbackKey` (typically the config filename stem) is used.
+ *
+ * @param config     - A validated `CompanyConfig` object.
+ * @param fallbackKey - The company key / config filename stem (e.g. `"figma"`).
+ * @returns The board token to use in Greenhouse API calls.
+ */
+export function resolveBoardToken(
+  config: CompanyConfig,
+  fallbackKey: string,
+): string {
+  return config.boardToken !== '' ? config.boardToken : fallbackKey;
 }

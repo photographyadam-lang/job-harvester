@@ -67,7 +67,8 @@ describe('filterJobs', () => {
     expect(result.rejected[0].id).toBe(1);
     expect(result.rejected[0].rejectedAtStage).toBe(2);
     expect(result.rejected[0].reason).toMatch(/location/i);
-    expect(result.rejected[0].reason).toContain('San Francisco');
+    expect(result.rejected[0].reason).toContain('San Francisco, CA');
+    expect(result.rejected[0].reason).toContain('[Remote]');
   });
 
   test('location excluded', () => {
@@ -84,6 +85,7 @@ describe('filterJobs', () => {
     expect(result.rejected).toHaveLength(1);
     expect(result.rejected[0].id).toBe(1);
     expect(result.rejected[0].reason).toMatch(/location/i);
+    expect(result.rejected[0].reason).toContain('[San Francisco]');
   });
 
   // -----------------------------------------------------------------------
@@ -253,6 +255,27 @@ describe('filterJobs', () => {
     expect(result.passed[0].id).toBe(1);
   });
 
+  test('department with trailing whitespace matches trimmed config value', () => {
+    // Greenhouse API sometimes returns department names with trailing spaces,
+    // e.g. "Technical Program Management " vs config "Technical Program Management".
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, departmentName: 'Technical Program Management ' }),
+      createRawJob({ id: 2, departmentName: 'Engineering ' }),
+    ];
+
+    const config: FilterConfig = {
+      location: '',
+      departments: ['Technical Program Management', 'Engineering'],
+      keyword: '',
+    };
+    const result = filterJobs(jobs, config);
+
+    // Both should match because the department value is trimmed before comparison
+    expect(result.passed).toHaveLength(2);
+    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2]);
+    expect(result.rejected).toHaveLength(0);
+  });
+
   test('case-insensitive keyword', () => {
     const jobs: RawJob[] = [
       createRawJob({ id: 1, title: 'software engineer' }),
@@ -344,11 +367,181 @@ describe('filterJobs', () => {
     // Job 1 fails location first
     expect(result.rejected[0].id).toBe(1);
     expect(result.rejected[0].reason).toMatch(/location/i);
-    expect(result.rejected[0].reason).toContain('New York');
+    expect(result.rejected[0].reason).toContain('New York, NY');
+    expect(result.rejected[0].reason).toContain('[San Francisco]');
 
     // Job 2 passes location but fails department
     expect(result.rejected[1].id).toBe(2);
     expect(result.rejected[1].reason).toMatch(/department/i);
     expect(result.rejected[1].reason).toContain('Marketing');
+  });
+
+  // -----------------------------------------------------------------------
+  // Location filter (comma-separated, OR logic)
+  // -----------------------------------------------------------------------
+
+  test('location retained (comma-separated, OR logic)', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, locationName: 'Remote - Virginia' }),
+      createRawJob({ id: 2, locationName: 'San Francisco, CA' }),
+      createRawJob({ id: 3, locationName: 'New York, NY' }),
+      createRawJob({ id: 4, locationName: 'London, UK' }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'Remote, San Francisco',
+      departments: [],
+      keyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Jobs 1 & 2 match "Remote" and "San Francisco" respectively via substring.
+    // Jobs 3 & 4 match neither.
+    expect(result.passed).toHaveLength(2);
+    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 2]);
+    expect(result.rejected).toHaveLength(2);
+    expect(result.rejected.map((j) => j.id).sort()).toEqual([3, 4]);
+    expect(result.rejected.every((r) => r.reason.includes('location'))).toBe(true);
+  });
+
+  test('location trims whitespace around comma-separated terms', () => {
+    const jobs: RawJob[] = [
+      createRawJob({ id: 1, locationName: 'Remote - US' }),
+    ];
+
+    const config: FilterConfig = {
+      location: ' Remote ,  San Francisco ',
+      departments: [],
+      keyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+  });
+
+  // -----------------------------------------------------------------------
+  // Pipe-delimited location strings
+  // -----------------------------------------------------------------------
+
+  test('pipe-delimited location matches any segment', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        locationName: 'San Francisco, CA | New York City, NY | Seattle, WA',
+        title: 'Software Engineer',
+      }),
+      createRawJob({
+        id: 2,
+        locationName: 'London, UK | Paris, France',
+        title: 'Data Scientist',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'San Francisco',
+      departments: [],
+      keyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Only job 1 should pass — its location contains "San Francisco, CA" segment
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(2);
+  });
+
+  test('pipe-delimited location matches any of multiple target locations', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        locationName: 'San Francisco, CA | New York City, NY | Seattle, WA',
+        title: 'Engineer',
+      }),
+      createRawJob({
+        id: 2,
+        locationName: 'London, UK | Paris, France',
+        title: 'Engineer',
+      }),
+      createRawJob({
+        id: 3,
+        locationName: 'Remote - US',
+        title: 'Engineer',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'Seattle, Remote',
+      departments: [],
+      keyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    // Job 1 matches "Seattle" in its third segment
+    // Job 3 matches "Remote" directly
+    // Job 2 matches neither
+    expect(result.passed).toHaveLength(2);
+    expect(result.passed.map((j) => j.id).sort()).toEqual([1, 3]);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].id).toBe(2);
+  });
+
+  test('pipe-delimited location rejected when no segment matches', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        locationName: 'San Francisco, CA | New York City, NY',
+        title: 'Engineer',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'London',
+      departments: [],
+      keyword: '',
+    };
+
+    expect(() => filterJobs(jobs, config)).toThrow(ConfigMismatchError);
+  });
+
+  test('pipe-delimited location with empty config location passes all', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        locationName: 'San Francisco, CA | New York City, NY | Remote',
+        title: 'Engineer',
+      }),
+    ];
+
+    const config: FilterConfig = { location: '', departments: [], keyword: '' };
+
+    const result = filterJobs(jobs, config);
+    expect(result.passed).toHaveLength(1);
+  });
+
+  test('pipe-delimited location trims whitespace around segments', () => {
+    const jobs: RawJob[] = [
+      createRawJob({
+        id: 1,
+        locationName: '  San Francisco, CA  |  New York City, NY  |  Seattle, WA  ',
+        title: 'Engineer',
+      }),
+    ];
+
+    const config: FilterConfig = {
+      location: 'Seattle',
+      departments: [],
+      keyword: '',
+    };
+
+    const result = filterJobs(jobs, config);
+
+    expect(result.passed).toHaveLength(1);
+    expect(result.passed[0].id).toBe(1);
   });
 });

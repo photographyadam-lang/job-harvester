@@ -20,7 +20,7 @@ import { filterByGap } from './stage4-gap-filter';
 import { scoreJobs } from './stage5-scorer';
 import { isProcessed, markProcessed } from '../output/dedupCache';
 import { persistRun } from '../output/runPersister';
-import { loadCompanyConfig } from '../config/companyConfig';
+import { loadCompanyConfig, resolveBoardToken } from '../config/companyConfig';
 import { loadSkillsProfile } from '../config/skillsProfile';
 import { createLogger } from '../utils/logger';
 import type { Logger } from '../utils/logger';
@@ -73,7 +73,15 @@ export async function executeStage1(
     emit({
       type: 'job-passed',
       stage: 1,
-      job: { id: job.id, title: job.title, url: job.absolute_url },
+      job: {
+        id: job.id,
+        title: job.title,
+        url: job.absolute_url,
+        department: job.department.name,
+        location: job.location.name,
+        updatedAt: job.updated_at,
+        firstPublished: job.first_published,
+      },
     });
     logger.jobEvent(1, 'passed', job.id, { title: job.title });
   }
@@ -147,6 +155,12 @@ export function executeStage2(
  * `reason: "Already processed"` and `rejectedAtStage: 3`.
  *
  * @returns The deduplicated list of filtered jobs.
+ */
+/**
+ * @deprecated Dedup check removed from pipeline flow — jobs now pass directly
+ * from Stage 2 to Stage 3 on every run.  This function is kept exported for
+ * potential future use but is no longer called by `runPipeline` or the step
+ * orchestrator.
  */
 export function executeDedupCheck(
   jobs: FilteredJobType[],
@@ -359,6 +373,9 @@ export async function runPipeline(
   const companyConfig = loadCompanyConfig(companyToken);
   const skillsProfile = loadSkillsProfile();
 
+  // Resolve the effective Greenhouse board token (config field or fallback to key)
+  const boardToken = resolveBoardToken(companyConfig, companyToken);
+
   // -------------------------------------------------------------------------
   // 2. Build FilterConfig
   // -------------------------------------------------------------------------
@@ -378,7 +395,7 @@ export async function runPipeline(
   // -------------------------------------------------------------------------
   // 4. Stage 1 — Fetch
   // -------------------------------------------------------------------------
-  const s1 = await executeStage1(companyToken, emit);
+  const s1 = await executeStage1(boardToken, emit);
   const { jobs: rawJobs } = s1;
   stageReports.push(s1.report);
 
@@ -400,27 +417,10 @@ export async function runPipeline(
   }
 
   // -------------------------------------------------------------------------
-  // 6. Dedup cache check (between Stage 2 and Stage 3)
-  // -------------------------------------------------------------------------
-  const dedupFiltered = executeDedupCheck(stage2Passed, emit);
-  // Collect dedup-rejected jobs
-  for (const job of stage2Passed) {
-    if (isProcessed(job.id)) {
-      allRejectedJobs.push({
-        id: job.id,
-        title: job.title,
-        url: job.url,
-        rejectedAtStage: 3,
-        reason: 'Already processed',
-      });
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // 7. Stage 3 — Extract
+  // 6. Stage 3 — Extract
   // -------------------------------------------------------------------------
   const s3 = await executeStage3(
-    dedupFiltered,
+    stage2Passed,
     companyConfig,
     companyConfig.name,
     emit,
@@ -429,21 +429,21 @@ export async function runPipeline(
   allRejectedJobs.push(...s3.result.rejected);
 
   // -------------------------------------------------------------------------
-  // 8. Stage 4 — Gap Filter
+  // 7. Stage 4 — Gap Filter
   // -------------------------------------------------------------------------
   const s4 = executeStage4(s3.result.passed, skillsProfile, emit);
   stageReports.push(s4.report);
   allRejectedJobs.push(...s4.result.rejected);
 
   // -------------------------------------------------------------------------
-  // 9. Stage 5 — Score
+  // 8. Stage 5 — Score
   // -------------------------------------------------------------------------
   const s5 = await executeStage5(s4.result.passed, skillsProfile, emit);
   stageReports.push(s5.report);
   allRejectedJobs.push(...s5.result.rejected);
 
   // -------------------------------------------------------------------------
-  // 10. Compute ReportCard
+  // 9. Compute ReportCard
   // -------------------------------------------------------------------------
   const totalRuntimeMs = Date.now() - startTime;
 
@@ -470,7 +470,7 @@ export async function runPipeline(
   };
 
   // -------------------------------------------------------------------------
-  // 11. Mark processed
+  // 10. Mark processed
   // -------------------------------------------------------------------------
   for (const job of s5.result.scoredJobs) {
     markProcessed(job.id);
@@ -478,7 +478,7 @@ export async function runPipeline(
   logger.info('Marked processed', { count: s5.result.scoredJobs.length });
 
   // -------------------------------------------------------------------------
-  // 12. Build PipelineRunOutput
+  // 11. Build PipelineRunOutput
   // -------------------------------------------------------------------------
   const output: PipelineRunOutput = {
     companyToken,
@@ -490,13 +490,13 @@ export async function runPipeline(
   };
 
   // -------------------------------------------------------------------------
-  // 13. Persist
+  // 12. Persist
   // -------------------------------------------------------------------------
   persistRun(output);
   logger.info('Run persisted', { company: companyToken });
 
   // -------------------------------------------------------------------------
-  // 14. Emit run-complete
+  // 13. Emit run-complete
   // -------------------------------------------------------------------------
   const scoredJobSummaries = s5.result.scoredJobs.map((job) => ({
     id: job.id,
@@ -520,7 +520,7 @@ export async function runPipeline(
   });
 
   // -------------------------------------------------------------------------
-  // 15. Return
+  // 14. Return
   // -------------------------------------------------------------------------
   return output;
 }

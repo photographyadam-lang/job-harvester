@@ -57,6 +57,7 @@ const baseConfig: CompanyConfig = {
   departments: ['Engineering', 'Product', 'Design'],
   location: 'San Francisco',
   keyword: 'Engineer',
+  boardToken: '',
   sectionHeaders: {
     must_have: ['About the role', "What you'll do"],
     nice_to_have: ['Nice to have'],

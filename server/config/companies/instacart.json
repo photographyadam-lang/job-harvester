@@ -1,0 +1,25 @@
+{
+  "name": "instacart",
+  "departments": [
+    "Customer Experience & Operations",
+    "Commercial Excellence",
+    "Data Science",
+    "IT",
+    "Leadership (Engineering)",
+    "Leadership (Product)",
+    "Product Management",
+    "Professional Services",
+    "Technical Program Management"
+  ],
+  "location": "United States - Remote, United States - Remote (LA, SF and Seattle), US - Remote",
+  "keyword": "Chief of Staff, Consultant, Coordinator, Data Analyst, Data Scientist, Director, Director of Customer Success, Director of Product, Forward Deployed Engineer, Knowledge Strategist Team Lead, Manager, Partner, People Experience Program Manager, Principal Product Manager, Product Manager, Program Manager, Senior Director, Technical Program Manager, Trust & Safety Specialist, AI Productivity, AI, Agentic Commerce, Fraud & Trust, Governance, Privacy Security, Security Operations",
+  "boardToken": "instacart",
+  "sectionHeaders": {
+    "must_have": [
+      "Minimum Qualifications"
+    ],
+    "nice_to_have": [
+      "Preferred Qualifications"
+    ]
+  }
+}

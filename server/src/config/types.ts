@@ -55,6 +55,15 @@ export interface CompanyConfig {
    */
   keyword: string;
   /**
+   * Greenhouse board token used to construct the Greenhouse API URL
+   * (e.g. `"figma"` → `https://boards-api.greenhouse.io/v1/boards/figma/...`).
+   *
+   * When empty or omitted, the system falls back to the config filename
+   * (the company key) as the board token — preserving backward compatibility
+   * with configs created before this field existed.
+   */
+  boardToken: string;
+  /**
    * Section header keywords used during Stage 3 (requirement extraction)
    * to split a job posting's HTML into must-have and nice-to-have buckets.
    */

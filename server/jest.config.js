@@ -6,6 +6,7 @@ const config = {
   testMatch: ["**/*.test.ts"],
   moduleFileExtensions: ["ts", "js", "json"],
   passWithNoTests: true,
+  setupFiles: ["<rootDir>/src/test-setup.ts"],
 };
 
 module.exports = config;

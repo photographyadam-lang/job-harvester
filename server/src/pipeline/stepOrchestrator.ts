@@ -12,16 +12,15 @@
  */
 
 import { type Response } from 'express';
-import { loadCompanyConfig } from '../config/companyConfig';
+import { loadCompanyConfig, resolveBoardToken } from '../config/companyConfig';
 import { loadSkillsProfile } from '../config/skillsProfile';
-import { isProcessed, markProcessed } from '../output/dedupCache';
+import { markProcessed } from '../output/dedupCache';
 import { persistRun } from '../output/runPersister';
 import { createLogger } from '../utils/logger';
 import type { Logger } from '../utils/logger';
 import {
   executeStage1,
   executeStage2,
-  executeDedupCheck,
   executeStage3,
   executeStage4,
   executeStage5,
@@ -70,7 +69,6 @@ interface StepSession {
   // Accumulated data
   rawJobs: RawJob[];
   stage2Result?: { passed: FilteredJob[]; rejected: RejectedJob[] };
-  dedupFiltered: FilteredJob[];
   stage3Result?: { passed: ExtractedJob[]; rejected: RejectedJob[] };
   stage4Result?: { passed: GatedJob[]; rejected: RejectedJob[] };
   stage5Result?: { scoredJobs: import('../types').ScoredJob[]; rejected: RejectedJob[] };
@@ -138,7 +136,6 @@ export function createStepSession(
     skillsProfile,
     filterConfig,
     rawJobs: [],
-    dedupFiltered: [],
     allRejectedJobs: [],
     stageReports: [],
     startTime: Date.now(),
@@ -171,7 +168,8 @@ export async function startStepSession(token: string): Promise<void> {
   }
 
   try {
-    const s1 = await executeStage1(token, session.emit);
+    const boardToken = resolveBoardToken(session.companyConfig, token);
+    const s1 = await executeStage1(boardToken, session.emit);
     session.rawJobs = s1.jobs;
     session.stageReports.push(s1.report);
     session.currentStage = 1;
@@ -222,25 +220,6 @@ export async function advanceStepSession(token: string): Promise<void> {
         session.allRejectedJobs.push(...s2.result.rejected);
         session.currentStage = 2;
 
-        // Dedup check
-        const dedupFiltered = executeDedupCheck(
-          s2.result.passed,
-          session.emit,
-        );
-        for (const job of s2.result.passed) {
-          if (isProcessed(job.id)) {
-            session.allRejectedJobs.push({
-              id: job.id,
-              title: job.title,
-              url: job.url,
-              rejectedAtStage: 3,
-              reason: 'Already processed',
-            });
-          }
-        }
-        session.dedupFiltered = dedupFiltered;
-        session.currentStage = 2; // still stage 2 as far as the user knows; dedup is transparent
-
         session.emit({ type: 'stage-ready', stage: 2, nextStage: 3 });
         break;
       }
@@ -250,7 +229,7 @@ export async function advanceStepSession(token: string): Promise<void> {
       // -----------------------------------------------------------------
       case 3: {
         const s3 = await executeStage3(
-          session.dedupFiltered,
+          session.stage2Result!.passed,
           session.companyConfig,
           session.companyConfig.name,
           session.emit,

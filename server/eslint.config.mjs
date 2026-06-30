@@ -8,11 +8,13 @@ export default [
   },
   {
     files: ["src/**/*.ts"],
+    ignores: ["**/*.test.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: "module",
+        projectService: true,
       },
       globals: {
         console: "readonly",
@@ -49,6 +51,7 @@ export default [
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/explicit-function-return-type": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "no-console": "off",
@@ -57,6 +60,13 @@ export default [
   },
   {
     files: ["**/*.test.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+      },
+    },
     plugins: {
       jest: jestPlugin,
     },

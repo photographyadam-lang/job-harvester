@@ -21,6 +21,14 @@ interface PassedJob {
   id: number;
   title: string;
   url: string;
+  /** Populated by Stage 1 (Fetch) only. */
+  department?: string;
+  /** Populated by Stage 1 (Fetch) only. */
+  location?: string;
+  /** ISO 8601 — populated by Stage 1 (Fetch) only. */
+  updatedAt?: string;
+  /** ISO 8601 — populated by Stage 1 (Fetch) only. */
+  firstPublished?: string;
 }
 
 interface RejectedJob {
@@ -59,6 +67,20 @@ const STAGE_COLORS: Record<StageNumber, string> = {
   5: '#10b981', // emerald
 };
 
+/**
+ * Format an ISO 8601 date string into a short human-readable form.
+ * Returns "—" for undefined or unparseable input.
+ */
+function formatDate(iso: string | undefined): string {
+  if (!iso) return '\u2014';
+  try {
+    // Extract just the date part (YYYY-MM-DD)
+    return iso.slice(0, 10);
+  } catch {
+    return '\u2014';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -74,6 +96,23 @@ export function StagePanel({
 }: StagePanelProps) {
   const accentColor = STAGE_COLORS[stage];
   const totalJobs = passedJobs.length + rejectedJobs.length;
+
+  // Shared table cell styles for Stage 1 table
+  const thStyle: React.CSSProperties = {
+    padding: '0.35rem 0.5rem',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+    color: '#374151',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.03em',
+  };
+  const tdStyle: React.CSSProperties = {
+    padding: '0.3rem 0.5rem',
+    verticalAlign: 'top',
+    wordBreak: 'break-word',
+  };
 
   // Derive status badge
   let statusBadge: string;
@@ -177,11 +216,57 @@ export function StagePanel({
           >
             Passed
           </div>
-          <ul style={{ margin: 0, padding: 0 }}>
-            {passedJobs.map((job) => (
-              <JobRow key={`p-${job.id}`} variant="passed" job={job} />
-            ))}
-          </ul>
+
+          {/* Stage 1 renders a table with extra columns */}
+          {stage === 1 ? (
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: '0.82rem',
+              }}
+            >
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${accentColor}40` }}>
+                  <th style={thStyle}>Job</th>
+                  <th style={thStyle}>Department</th>
+                  <th style={thStyle}>Location</th>
+                  <th style={thStyle}>Updated</th>
+                  <th style={thStyle}>Published</th>
+                </tr>
+              </thead>
+              <tbody>
+                {passedJobs.map((job) => (
+                  <tr
+                    key={`p-${job.id}`}
+                    style={{ borderBottom: '1px solid #e5e7eb' }}
+                  >
+                    <td style={tdStyle}>
+                      <a
+                        href={job.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#166534', textDecoration: 'none', fontWeight: 500 }}
+                      >
+                        {job.title}
+                      </a>
+                    </td>
+                    <td style={tdStyle}>{job.department ?? '\u2014'}</td>
+                    <td style={tdStyle}>{job.location ?? '\u2014'}</td>
+                    <td style={tdStyle}>{formatDate(job.updatedAt)}</td>
+                    <td style={tdStyle}>{formatDate(job.firstPublished)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            /* Stage 2-5 keep the simple list */
+            <ul style={{ margin: 0, padding: 0 }}>
+              {passedJobs.map((job) => (
+                <JobRow key={`p-${job.id}`} variant="passed" job={job} />
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { loadCompanyConfig } from './companyConfig';
+import { loadCompanyConfig, resolveBoardToken } from './companyConfig';
 import { ConfigValidationError } from './types';
 
 // ---------------------------------------------------------------------------
@@ -24,6 +24,7 @@ const validCompanyConfig = {
   departments: ['Engineering', 'Product'],
   location: 'San Francisco',
   keyword: 'Engineer',
+  boardToken: '',
   sectionHeaders: {
     must_have: ['About the role'],
     nice_to_have: ['Nice to have'],
@@ -136,5 +137,52 @@ describe('loadCompanyConfig', () => {
     );
 
     expect(() => loadCompanyConfig('figma')).toThrow(ConfigValidationError);
+  });
+
+  test('defaults boardToken to empty string when missing', () => {
+    // validCompanyConfig does not include boardToken
+    mockedReadFileSync.mockReturnValueOnce(JSON.stringify(validCompanyConfig));
+
+    const result = loadCompanyConfig('figma');
+
+    expect(result.boardToken).toBe('');
+  });
+
+  test('parses boardToken when present', () => {
+    mockedReadFileSync.mockReturnValueOnce(
+      JSON.stringify({ ...validCompanyConfig, boardToken: 'figma-inc' }),
+    );
+
+    const result = loadCompanyConfig('figma');
+
+    expect(result.boardToken).toBe('figma-inc');
+  });
+
+  test('defaults boardToken to empty string when not a string', () => {
+    mockedReadFileSync.mockReturnValueOnce(
+      JSON.stringify({ ...validCompanyConfig, boardToken: 123 }),
+    );
+
+    const result = loadCompanyConfig('figma');
+
+    expect(result.boardToken).toBe('');
+  });
+});
+
+describe('resolveBoardToken', () => {
+  test('returns boardToken when it is non-empty', () => {
+    const config = { ...validCompanyConfig, boardToken: 'my-board' };
+
+    const result = resolveBoardToken(config, 'fallback-key');
+
+    expect(result).toBe('my-board');
+  });
+
+  test('returns fallbackKey when boardToken is empty string', () => {
+    const config = { ...validCompanyConfig, boardToken: '' };
+
+    const result = resolveBoardToken(config, 'fallback-key');
+
+    expect(result).toBe('fallback-key');
   });
 });

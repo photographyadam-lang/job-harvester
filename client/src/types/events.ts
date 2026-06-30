@@ -44,6 +44,14 @@ export interface JobPassedEvent {
     id: number;
     title: string;
     url: string;
+    /** Set by Stage 1 (Fetch) only. */
+    department?: string;
+    /** Set by Stage 1 (Fetch) only. */
+    location?: string;
+    /** ISO 8601 — set by Stage 1 (Fetch) only. */
+    updatedAt?: string;
+    /** ISO 8601 — set by Stage 1 (Fetch) only. */
+    firstPublished?: string;
   };
 }
 

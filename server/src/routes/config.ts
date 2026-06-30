@@ -15,11 +15,12 @@
 import { Router, type Request, type Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadCompanyConfig } from '../config/companyConfig';
+import { loadCompanyConfig, resolveBoardToken } from '../config/companyConfig';
 import { loadSkillsProfile } from '../config/skillsProfile';
 import { ConfigValidationError } from '../config/types';
 import { callDeepSeek, LlmApiError, LlmSchemaError } from '../llm/deepseekClient';
 import { fetchJobs, FetchError } from '../pipeline/stage1-fetch';
+import type { FrequencyItem } from '../types';
 
 const router = Router();
 
@@ -272,9 +273,12 @@ router.post('/config/profile/suggest-aliases', async (req: Request, res: Respons
 // ---------------------------------------------------------------------------
 // POST /api/config/company/:token/suggest-keywords
 //
-// Fetches all job titles for the company from Greenhouse, sends them to
-// DeepSeek to identify common role keywords, and returns the suggestions.
-// The user initiates this from the Role Keyword field in the ConfigEditor UI.
+// Fetches all job titles for the company from Greenhouse and sends them to
+// DeepSeek to decompose each title into two components:
+//   1. roles         — generic role/level descriptions (e.g. "Software Engineer")
+//   2. specializations — domain / functional specialty (e.g. "Machine Learning")
+// Both lists are deduplicated and returned separately so the ConfigEditor UI
+// can present them as grouped suggestions in a datalist dropdown.
 // ---------------------------------------------------------------------------
 
 router.post(
@@ -283,50 +287,90 @@ router.post(
     const { token } = req.params;
 
     try {
+      // 0. Resolve the effective Greenhouse board token.
+      //    If the company config file exists, use its boardToken field (or fall
+      //    back to the token).  If the config file doesn't exist yet, use the
+      //    raw token.
+      let boardToken = token as string;
+      try {
+        const companyConfig = loadCompanyConfig(token as string);
+        boardToken = resolveBoardToken(companyConfig, token as string);
+      } catch {
+        // Config file doesn't exist — use raw token as board token
+      }
+
       // 1. Fetch all job titles for the company
-      const { jobs } = await fetchJobs(token as string);
+      const { jobs } = await fetchJobs(boardToken);
 
       // 2. Extract deduplicated, sorted job titles
       const titles = [...new Set(jobs.map((j) => j.title))].sort();
 
-      // 3. Build the prompt
+      // 3. Build the prompt — decompose titles into roles + specializations
       const prompt = [
-        'Given the following list of job titles from a company\'s careers page, identify common role keywords that could be used to filter jobs.',
-        'A role keyword is a single word or short phrase that appears across multiple job titles and describes the role type (e.g. "Engineer", "Designer", "Manager", "Product").',
+        'Given the following list of job titles from a company\'s careers page, decompose each title into two components and return them as separate, deduplicated lists.',
         '',
-        'Guidelines:',
-        '- Extract keywords that represent role types, not seniority levels ("Senior", "Lead", "Principal" are NOT keywords)',
-        '- Do not include company names or location-based terms',
-        '- Each keyword should be a short, descriptive term (1-3 words)',
-        '- Only include keywords that are likely useful for filtering jobs by role',
+        '1. ROLES: The generic role or level description — the part that describes the job function independent of domain.',
+        '   Examples: "Software Engineer", "Manager", "Director", "Head", "Lead", "Partner", "Specialist", "Analyst", "Project Manager", "Associate", "Consultant", "Designer", "Scientist", "Architect", "Developer", "Administrator", "Coordinator", "Recruiter", "Representative".',
+        '   Include seniority modifiers when they are part of the role (e.g. "Senior Software Engineer", "Junior Analyst", "Staff Engineer").',
+        '   Deduplicate this list — return each unique role once, sorted alphabetically.',
+        '',
+        '2. SPECIALIZATIONS: The domain or functional specialty — the part that describes what area the role focuses on.',
+        '   Examples: "Machine Learning", "Security Operations", "Product Design", "Data Engineering", "Revenue Operations", "Infrastructure", "Privacy", "Mid-Market Sales".',
+        '   DO NOT include generic role-level words here (those belong in the ROLES list).',
+        '   DO NOT include company names or location-based terms.',
+        '   Each specialization should be 1-4 words long.',
+        '   Deduplicate this list — return each unique specialization once, sorted alphabetically.',
         '',
         'Job titles:',
         ...titles.map((t) => `- ${t}`),
         '',
-        'Return ONLY a JSON object with a "keywords" array of strings, e.g. {"keywords":["Engineer","Designer","Manager"]}.',
-        'If no meaningful role patterns exist, return {"keywords":[]}.',
-        'Limit to at most 12 keywords.',
+        'Return ONLY a JSON object with "roles" and "specializations" arrays, e.g.',
+        '{"roles":["Data Scientist","Software Engineer"],"specializations":["Machine Learning","Platform Engineering"]}.',
+        'If no meaningful patterns exist, return {"roles":[],"specializations":[]}.',
+        'Limit each array to at most 20 items.',
       ].join('\n');
 
       // 4. Call DeepSeek
       const schema = {
         type: 'object' as const,
         properties: {
-          keywords: {
+          roles: {
+            type: 'array' as const,
+            items: { type: 'string' as const },
+          },
+          specializations: {
             type: 'array' as const,
             items: { type: 'string' as const },
           },
         },
-        required: ['keywords'],
+        required: ['roles', 'specializations'],
       };
 
       const response = await callDeepSeek(prompt, schema, {
         temperature: 0.2,
       });
 
-      // 5. Parse and return
-      const parsed = JSON.parse(response.content) as { keywords: string[] };
-      res.json({ keywords: parsed.keywords });
+      // 5. Parse, compute keyword match frequencies, sort alphabetically, and return
+      const parsed = JSON.parse(response.content) as {
+        roles: string[];
+        specializations: string[];
+      };
+
+      // Helper: count how many job titles contain a keyword (case-insensitive substring)
+      const countMatches = (keyword: string): number => {
+        const lower = keyword.toLowerCase();
+        return jobs.filter((j) => j.title.toLowerCase().includes(lower)).length;
+      };
+
+      const roles: FrequencyItem[] = parsed.roles
+        .map((name) => ({ name, count: countMatches(name) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const specializations: FrequencyItem[] = parsed.specializations
+        .map((name) => ({ name, count: countMatches(name) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      res.json({ roles, specializations });
     } catch (err) {
       if (err instanceof FetchError) {
         res
@@ -351,5 +395,122 @@ router.post(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// POST /api/config/company
+//
+// Creates a new company config file.  The request body must include a
+// `token` (the config filename stem) and optionally a `config` object with
+// initial values.  If only `token` is provided a minimal valid config is
+// scaffolded.
+// ---------------------------------------------------------------------------
+
+router.post('/config/company', (req: Request, res: Response) => {
+  const { token, config: partialConfig } = req.body as {
+    token?: string;
+    config?: Record<string, unknown>;
+  };
+
+  // Validate token
+  if (!token || typeof token !== 'string' || token.trim().length === 0) {
+    res.status(400).json({
+      error: 'Validation failed',
+      detail: 'Field "token" is required and must be a non-empty string.',
+    });
+    return;
+  }
+
+  const filePath = path.resolve(companiesDir(), `${token}.json`);
+
+  try {
+    // Reject if already exists
+    if (fs.existsSync(filePath)) {
+      res.status(409).json({
+        error: 'Company already exists',
+        detail: `A company with token "${token}" already exists. Use PUT to update it.`,
+      });
+      return;
+    }
+
+    // Ensure target directory exists
+    fs.mkdirSync(companiesDir(), { recursive: true });
+
+    // Build the initial config — merge provided fields with defaults
+    const defaultConfig: Record<string, unknown> = {
+      name: token, // default name = token
+      departments: ['Engineering'],
+      location: '',
+      keyword: '',
+      boardToken: '',
+      sectionHeaders: {
+        must_have: ["We'd love to hear from you if you have:"],
+        nice_to_have: ["While it's not required, it's an added plus if you also have:"],
+      },
+    };
+
+    const merged: Record<string, unknown> = {
+      ...defaultConfig,
+      ...(partialConfig ?? {}),
+    };
+
+    // Preserve the user-supplied token as default name if no name given
+    if (!merged.name || (partialConfig && !partialConfig.name)) {
+      merged.name = token;
+    }
+
+    // Write and validate
+    const raw = JSON.stringify(merged, null, 2);
+    fs.writeFileSync(filePath, raw, 'utf-8');
+
+    // Validate by loading
+    try {
+      loadCompanyConfig(token);
+    } catch (validateErr) {
+      // Validation failed — clean up
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        // Best-effort cleanup
+      }
+      handleValidationError(validateErr, res);
+      return;
+    }
+
+    const created = loadCompanyConfig(token);
+    res.status(201).json(created);
+  } catch (err) {
+    if (err instanceof ConfigValidationError) {
+      handleValidationError(err, res);
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: String(err) });
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/config/company/:token
+//
+// Deletes a company config file.  Returns 404 if the file does not exist.
+// ---------------------------------------------------------------------------
+
+router.delete('/config/company/:token', (req: Request, res: Response) => {
+  const { token } = req.params;
+  const filePath = path.resolve(companiesDir(), `${token}.json`);
+
+  try {
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({
+        error: 'Company not found',
+        detail: `No company config found for token "${token}".`,
+      });
+      return;
+    }
+
+    fs.unlinkSync(filePath);
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error', detail: String(err) });
+  }
+});
 
 export default router;

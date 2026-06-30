@@ -1,0 +1,26 @@
+{
+  "name": "databricks",
+  "departments": [
+    "Engineering",
+    "Business Development",
+    "Corporate Operations",
+    "Education & Training",
+    "IT",
+    "Legal",
+    "Marketing",
+    "Product",
+    "Professional Services Operations",
+    "Security"
+  ],
+  "location": "Remote, Bellevue, Washington, Austin, Texas, Remote - Washington, Remote - Texas, Remote - Oregon",
+  "keyword": "Alliance Director, Chief of Staff, Consultant, Coordinator, Customer Advisor, Director, Engagement Manager, Field CTO, Head, Manager, Product Manager, Product Operations Manager, Program Manager, Sales Director, Senior Director, Senior Manager, Technical Escalation Manager, Technology Partner Director, Privacy, GenAI, Data for Good, Business Applications, Trust and Safety",
+  "boardToken": "databricks",
+  "sectionHeaders": {
+    "must_have": [
+      "What You Bring"
+    ],
+    "nice_to_have": [
+      "Bonus Points"
+    ]
+  }
+}

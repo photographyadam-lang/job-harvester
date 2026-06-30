@@ -9,7 +9,7 @@ const MOCK_TOKEN = 'figma';
 /**
  * Minimal shape of a single job as returned by the Greenhouse API.
  */
-function createRawJob(overrides: Partial<{ id: number; title: string; content: string; locationName: string; departmentName: string; absoluteUrl: string }> = {}) {
+function createRawJob(overrides: Partial<{ id: number; title: string; content: string; locationName: string; departmentName: string; absoluteUrl: string; updatedAt: string; firstPublished: string }> = {}) {
   return {
     id: overrides.id ?? 1,
     title: overrides.title ?? 'Software Engineer',
@@ -17,6 +17,8 @@ function createRawJob(overrides: Partial<{ id: number; title: string; content: s
     location: { name: overrides.locationName ?? 'San Francisco, CA' },
     department: { name: overrides.departmentName ?? 'Engineering' },
     absolute_url: overrides.absoluteUrl ?? 'https://boards.greenhouse.io/figma/jobs/1',
+    updated_at: overrides.updatedAt ?? '2026-04-16T05:25:34-04:00',
+    first_published: overrides.firstPublished ?? '2024-11-01T06:05:10-04:00',
   };
 }
 
@@ -108,5 +110,40 @@ describe('fetchJobs', () => {
 
     expect(result.rawCount).toBe(result.jobs.length);
     expect(result.rawCount).toBe(3);
+  });
+
+  test('extracts updated_at and first_published from the API response', async () => {
+    const jobs = [
+      createRawJob({
+        id: 42,
+        updatedAt: '2025-06-15T12:00:00-04:00',
+        firstPublished: '2025-03-01T08:30:00-05:00',
+      }),
+    ];
+    mockFetch(200, { jobs });
+
+    const result = await fetchJobs(MOCK_TOKEN);
+
+    expect(result.jobs[0].updated_at).toBe('2025-06-15T12:00:00-04:00');
+    expect(result.jobs[0].first_published).toBe('2025-03-01T08:30:00-05:00');
+  });
+
+  test('sets updated_at and first_published to undefined when missing from API response', async () => {
+    const jobs = [
+      {
+        id: 99,
+        title: 'Minimal Job',
+        content: '<p>Minimal</p>',
+        location: { name: 'Remote' },
+        department: { name: 'Engineering' },
+        absolute_url: 'https://example.com/jobs/99',
+      },
+    ];
+    mockFetch(200, { jobs });
+
+    const result = await fetchJobs(MOCK_TOKEN);
+
+    expect(result.jobs[0].updated_at).toBeUndefined();
+    expect(result.jobs[0].first_published).toBeUndefined();
   });
 });

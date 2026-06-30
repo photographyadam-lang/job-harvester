@@ -120,6 +120,16 @@ export async function fetchJobs(token: string): Promise<FetchResult> {
           .name as string;
       }
 
+      // --- updated_at ---
+      const updatedAt =
+        typeof raw.updated_at === 'string' ? raw.updated_at : undefined;
+
+      // --- first_published ---
+      const firstPublished =
+        typeof raw.first_published === 'string'
+          ? raw.first_published
+          : undefined;
+
       return {
         id: typeof raw.id === 'number' ? raw.id : 0,
         title: typeof raw.title === 'string' ? raw.title : 'Untitled',
@@ -128,6 +138,8 @@ export async function fetchJobs(token: string): Promise<FetchResult> {
         department: { name: departmentName },
         absolute_url:
           typeof raw.absolute_url === 'string' ? raw.absolute_url : '',
+        updated_at: updatedAt,
+        first_published: firstPublished,
       };
     },
   );

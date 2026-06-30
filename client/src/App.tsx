@@ -6,6 +6,8 @@ import { RunControls } from './components/RunControls';
 import { StagePanel } from './components/StagePanel';
 import { ReportCard } from './components/ReportCard';
 import { ScoredJobsList } from './components/ScoredJobsList';
+import { AddCompanyDialog } from './components/AddCompanyDialog';
+import type { NewCompanyInput } from './components/AddCompanyDialog';
 import type {
   StageNumber,
   PipelineEvent,
@@ -23,7 +25,15 @@ const STAGE_ORDER: StageNumber[] = [1, 2, 3, 4, 5];
 interface StageData {
   stage: StageNumber;
   label: string;
-  passedJobs: Array<{ id: number; title: string; url: string }>;
+  passedJobs: Array<{
+    id: number;
+    title: string;
+    url: string;
+    department?: string;
+    location?: string;
+    updatedAt?: string;
+    firstPublished?: string;
+  }>;
   rejectedJobs: Array<{ id: number; title: string; url: string; reason: string }>;
   isRunning: boolean;
   isComplete: boolean;
@@ -38,7 +48,15 @@ function buildStageData(events: PipelineEvent[], status: string): StageData[] {
   const stageLabels = new Map<StageNumber, string>();
   const passedJobs = new Map<
     StageNumber,
-    Array<{ id: number; title: string; url: string }>
+    Array<{
+      id: number;
+      title: string;
+      url: string;
+      department?: string;
+      location?: string;
+      updatedAt?: string;
+      firstPublished?: string;
+    }>
   >();
   const rejectedJobs = new Map<
     StageNumber,
@@ -122,6 +140,8 @@ function App() {
   const [token, setToken] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [runMode, setRunMode] = useState<RunMode>('all');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     state,
@@ -151,6 +171,61 @@ function App() {
   const handleUnsavedChanges = useCallback((dirty: boolean) => {
     setHasUnsavedChanges(dirty);
   }, []);
+
+  const handleAddClick = useCallback(() => {
+    setAddDialogOpen(true);
+  }, []);
+
+  const handleCreateCompany = useCallback(
+    async (input: NewCompanyInput): Promise<string | null> => {
+      try {
+        const res = await fetch('/api/config/company', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          return body.detail ?? body.error ?? `Create failed (${res.status})`;
+        }
+
+        // Select the newly created company
+        setToken(input.token);
+        return null; // success
+      } catch (err) {
+        return String(err);
+      }
+    },
+    [],
+  );
+
+  const handleDeleteClick = useCallback(
+    async (companyToken: string) => {
+      setDeleting(true);
+      try {
+        const res = await fetch(
+          `/api/config/company/${encodeURIComponent(companyToken)}`,
+          { method: 'DELETE' },
+        );
+
+        if (!res.ok && res.status !== 204) {
+          // Log but don't block — refresh will show if it's still there
+          console.error(`Delete returned ${res.status}`);
+        }
+
+        // If the deleted company was selected, clear selection
+        if (token === companyToken) {
+          setToken(null);
+        }
+      } catch (err) {
+        console.error('Delete failed:', err);
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [token],
+  );
 
   const stageDataList = useMemo(
     () => buildStageData(state.events, state.status),
@@ -183,7 +258,13 @@ function App() {
         <label htmlFor="company-select" style={{ marginRight: '0.5rem' }}>
           Company:
         </label>
-        <CompanySelector token={token} onTokenChange={setToken} />
+        <CompanySelector
+          token={token}
+          onTokenChange={setToken}
+          onAddClick={handleAddClick}
+          onDeleteClick={handleDeleteClick}
+          deleting={deleting}
+        />
       </section>
 
       {/* Config Editor — embedded between company selector and run controls */}
@@ -261,6 +342,13 @@ function App() {
 
       {/* Scored jobs list — shown on run-complete */}
       {scoredJobs.length > 0 && <ScoredJobsList scoredJobs={scoredJobs} />}
+
+      {/* Add Company Dialog */}
+      <AddCompanyDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onCreate={handleCreateCompany}
+      />
 
       {/* Raw events — kept for debugging */}
       <details style={{ marginTop: '1.5rem' }}>

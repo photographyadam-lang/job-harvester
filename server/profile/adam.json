@@ -195,7 +195,21 @@
         "Language Model",
         "Neural Language Model"
       ]
+    },
+    {
+      "name": "Cross-functional initiatives",
+      "strength": "nice_to_have",
+      "aliases": [
+        "Cross-functional projects",
+        "Cross-team initiatives",
+        "Cross-departmental projects",
+        "Interdepartmental initiatives",
+        "Cross-functional collaboration",
+        "Cross-functional leadership",
+        "Cross-functional programs",
+        "Cross-functional work"
+      ]
     }
   ],
-  "gapThreshold": 0.6
+  "gapThreshold": 0.8
 }

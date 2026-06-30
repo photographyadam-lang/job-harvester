@@ -67,25 +67,39 @@ export function filterJobs(
   const passed: FilteredJob[] = [];
 
   for (const job of jobs) {
-    // --- Filter 1: Location (case-insensitive substring) ---
+    // --- Filter 1: Location (comma-separated, case-insensitive OR match) ---
+    // Pipe-delimited location strings (e.g. "San Francisco, CA | Seattle, WA")
+    // are split into individual segments so each location is checked separately.
     if (config.location.length > 0) {
-      const jobLocation = job.location.name.toLowerCase();
-      const targetLocation = config.location.toLowerCase();
-      if (!jobLocation.includes(targetLocation)) {
-        rejected.push({
-          id: job.id,
-          title: job.title,
-          url: job.absolute_url,
-          rejectedAtStage: 2,
-          reason: `Rejected by location filter: "${job.location.name}" does not match "${config.location}"`,
-        });
-        continue;
+      const locations = config.location
+        .split(',')
+        .map((l) => l.trim().toLowerCase())
+        .filter((l) => l.length > 0);
+
+      if (locations.length > 0) {
+        const jobLocationSegments = job.location.name
+          .split('|')
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s.length > 0);
+        const matchesAny = locations.some((loc) =>
+          jobLocationSegments.some((segment) => segment.includes(loc)),
+        );
+        if (!matchesAny) {
+          rejected.push({
+            id: job.id,
+            title: job.title,
+            url: job.absolute_url,
+            rejectedAtStage: 2,
+            reason: `Rejected by location filter: "${job.location.name}" does not match any location in [${config.location}]`,
+          });
+          continue;
+        }
       }
     }
 
     // --- Filter 2: Department (case-insensitive exact match) ---
     if (config.departments.length > 0) {
-      const jobDepartment = job.department.name.toLowerCase();
+      const jobDepartment = job.department.name.trim().toLowerCase();
       const matchesDepartment = config.departments.some(
         (d) => d.toLowerCase() === jobDepartment,
       );

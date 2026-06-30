@@ -23,6 +23,9 @@
 - Rule 7: Exit criterion for Phase 2 and Phase 3 tasks is `npm test --workspace=server`
   clean. Exit criterion for Phase 1 scaffold tasks is `npm run build --workspace=server`
   clean. Never mark a task done based on manual smoke testing or agent self-report alone.
+  This rule applies to **debug fixes** as well: after any code change anywhere in
+  `server/src/`, run `npm test --workspace=server` to confirm no compile errors, lint
+  violations, or test regressions before declaring completion.
 - Rule 8: No test may make a live HTTP request to the Greenhouse API or a live DeepSeek
   API call. All tests use fixtures in `server/__fixtures__/` or mock the relevant HTTP
   client. A test that reaches the network is a broken test.
